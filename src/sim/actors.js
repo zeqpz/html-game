@@ -104,6 +104,7 @@ export function moveBody(sim, a, dx, dy, speed, dt) {
   sim.world.collide(a.room, p, ACTOR_R, sim.dynamicSolids(a.room));
   a.x = p.x;
   a.y = p.y;
+  if (sim.cars) sim.cars.pushActor(a);
   const sp = Math.hypot(_.vx, _.vy);
   if (sp > 12) {
     _.walkPhase += sp * dt * 0.09;

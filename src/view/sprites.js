@@ -410,6 +410,11 @@ export function propParts(prop) {
       // register + candy rack + lotto sign
       fillRR(c, 30, h - 56, 40, 18, 2, '#2c2c30', '#111', 1);
       fillRR(c, 36, h - 63, 28, 8, 1, '#1d3b2a', null);
+      if (prop.plain) {
+        fillRR(c, 100, h - 50, 50, 10, 1, '#f4efe2', 'rgba(0,0,0,0.2)', 0.6);
+        fillRR(c, w - 40, h - 52, 22, 12, 2, '#c9302c', null);
+        return;
+      }
       fillRR(c, 110, h - 54, 60, 14, 2, '#c62828', '#5a0f0d', 1);
       for (let k = 0; k < 6; k++) fillRR(c, 113 + k * 9, h - 52, 7, 10, 1, ['#ffd23f', '#3d6db5', '#7cf29a', '#ff8fb4', '#f28c38', '#fff'][k], null);
       fillRR(c, w - 30, h - 70, 24, 30, 2, '#ffd23f', '#7a5d10', 1);
@@ -635,6 +640,90 @@ export function propParts(prop) {
       circle(c, w / 2 - 4, h - 20, 2, '#2c6fbb');
       circle(c, w / 2 + 4, h - 20, 2, '#d32f2f');
     })];
+    case 'workbench': return [part(x, y, w, h, 46, y + h, (c) => {
+      box(c, 0, 0, w, h, 34, '#8a6a48', '#5a4026');
+      fillRR(c, 10, h - 46, 40, 10, 2, '#c9302c', null);
+      fillRR(c, 60, h - 44, 30, 8, 1, '#9aa3ab', null);
+      circle(c, 110, h - 42, 6, '#5d656c');
+      line(c, 130, h - 46, 160, h - 40, '#c7ccd1', 3);
+      for (let k = 0; k < 3; k++) fillRR(c, 20 + k * 50, h - 20, 30, 12, 1, null, 'rgba(0,0,0,0.3)', 1);
+    })];
+    case 'toolbox': return [part(x, y, w, h, 52, y + h, (c) => {
+      box(c, 0, 0, w, h, 46, '#c9302c', '#a12521', { r: 3 });
+      for (let k = 0; k < 4; k++) {
+        line(c, 3, h - 40 + k * 10, w - 3, h - 40 + k * 10, 'rgba(0,0,0,0.3)', 1);
+        fillRR(c, w / 2 - 8, h - 37 + k * 10, 16, 2, 1, '#c7ccd1', null);
+      }
+      for (const wx of [5, w - 5]) circle(c, wx, h, 3, '#1d1d1d');
+    })];
+    case 'carlift': return [part(x, y, w, h, 70, y + h, (c) => {
+      shadowBlob(c, w / 2 + 4, h / 2 + 6, w * 0.5, h * 0.45, 0.3);
+      for (const px of [10, w - 26]) {
+        fillRR(c, px, 10, 16, h - 20, 2, '#3b6fa0', '#1f3a5a', 1);
+        fillRR(c, px - 2, -60, 20, 72, 2, '#2f5f8f', '#1f3a5a', 1);
+      }
+      c.save();
+      c.translate(w / 2, h / 2 - 40);
+      drawCar(c, -Math.PI / 2, '#5a7a3a', { front: 0.4, rear: 0, left: 0.2, right: 0 }, false, false, { len: 96, wid: 44 });
+      c.restore();
+    })];
+    case 'tirerack': return [part(x, y, w, h, 60, y + h, (c) => {
+      fillRR(c, 0, -50, w, h + 46, 2, 'rgba(0,0,0,0.2)', null);
+      for (let k = 0; k < 6; k++) {
+        ellipse(c, w / 2, -36 + k * ((h + 30) / 6), w / 2 - 4, 9, '#1d1d1d');
+        ellipse(c, w / 2, -37 + k * ((h + 30) / 6), w / 4, 4, '#3a3a3a');
+      }
+    })];
+    case 'stallpost': return [part(x, y, w, h, 40, y + h, (c) => {
+      fillRR(c, w / 2 - 4, h - 40, 8, 40, 2, '#ffd23f', '#7a5d10', 1);
+      for (let k = 0; k < 4; k++) line(c, w / 2 - 4, h - 36 + k * 9, w / 2 + 4, h - 32 + k * 9, '#1d1d1d', 2);
+      fillRR(c, -10, h - 52, w + 20, 14, 2, '#1d1d22', null);
+      text(c, 'STALL 3', w / 2, h - 45, { size: 6, color: '#ffd23f' });
+    })];
+    case 'palletrack': return [part(x, y, w, h, 110, y + h, (c) => {
+      const rnd = rngFor(`rack${x},${y}`);
+      for (const ux of [0, w / 2 - 3, w - 6]) fillRR(c, ux, -100, 6, h + 100, 1, '#3b6fa0', '#1f3a5a', 1);
+      for (let lvl = 0; lvl < 3; lvl++) {
+        const ly = h - 6 - lvl * 40;
+        fillRR(c, 0, ly - 4, w, 6, 1, '#e8862a', null);
+        for (let k = 0; k < Math.floor(w / 36); k++) {
+          if (rnd() < 0.25) continue;
+          const bw = 28 + rnd() * 6;
+          const bh = 22 + rnd() * 10;
+          fillRR(c, 6 + k * 36, ly - 4 - bh, bw, bh, 1, ['#c8a06a', '#b98f5a', '#d8b47a'][k % 3], 'rgba(0,0,0,0.3)', 0.8);
+          line(c, 6 + k * 36, ly - 4 - bh / 2, 6 + k * 36 + bw, ly - 4 - bh / 2, 'rgba(120,80,30,0.4)', 1);
+        }
+      }
+    })];
+    case 'pallet': return [part(x, y, w, h, 46, y + h, (c) => {
+      shadowBlob(c, w / 2 + 3, h / 2 + 4, w * 0.55, h * 0.5, 0.3);
+      fillRR(c, 0, h - 14, w, 12, 1, '#a07a4a', '#5a4026', 1);
+      for (let k = 0; k < 3; k++) fillRR(c, 4 + k * (w / 3), h - 12, w / 3 - 8, 8, 0, '#8a6a3a', null);
+      for (let r = 0; r < 2; r++) for (let k = 0; k < Math.floor(w / 32); k++) fillRR(c, 4 + k * 32, h - 40 - r * 22, 28, 24, 1, ['#c8a06a', '#d8b47a'][(k + r) % 2], 'rgba(0,0,0,0.3)', 0.8);
+      c.fillStyle = 'rgba(200,230,255,0.15)';
+      c.fillRect(0, h - 62, w, 50);
+    })];
+    case 'forklift': return [part(x, y, w, h, 70, y + h, (c) => {
+      shadowBlob(c, w / 2 + 3, h / 2 + 6, w * 0.6, h * 0.5, 0.35);
+      fillRR(c, 6, 20, w - 12, h - 30, 6, '#e8b923', '#7a5d10', 1.5);
+      fillRR(c, 12, -20, w - 24, 46, 4, 'rgba(40,40,40,0.25)', '#1d1d1d', 2);
+      fillRR(c, w / 2 - 12, 30, 24, 20, 4, '#1d1d1d', null);
+      for (const fx2 of [w / 2 - 14, w / 2 + 10]) fillRR(c, fx2, -36, 4, 40, 1, '#5d656c', null);
+      for (const wy of [30, h - 14]) for (const wx of [4, w - 12]) fillRR(c, wx, wy, 8, 14, 2, '#111', null);
+    })];
+    case 'dispatch': return [part(x, y, w, h, 60, y + h, (c) => {
+      box(c, 0, 0, w, h, 40, '#3a3d42', '#e8b923');
+      for (let k = 0; k < w; k += 16) {
+        c.fillStyle = (k / 16) % 2 ? '#1d1d1d' : '#f4f4f0';
+        c.fillRect(k, h - 12, 16, 8);
+      }
+      fillRR(c, 20, h - 60, 50, 20, 2, '#1d1d1d', '#000', 1);
+      for (let k = 0; k < 5; k++) circle(c, 28 + k * 9, h - 50, 2.5, ['#c62828', '#7cf29a', '#ffd23f', '#64b5f6', '#ff8fb4'][k]);
+      line(c, 60, h - 60, 66, h - 80, '#9aa3ab', 1.5);
+      fillRR(c, w - 70, h - 62, 40, 24, 2, '#111', '#000', 1);
+      fillRR(c, w - 67, h - 59, 34, 17, 1, '#1d3b5a', null);
+      text(c, 'DISPATCH', w / 2, h - 30, { size: 8, color: '#1d1d1d' });
+    })];
     case 'parkbench': return parkBench(prop);
     case 'busbench': return [part(x, y, w, h, 16, y, (c) => {
       fillRR(c, 0, 0, w, h, 2, '#7d8b94', '#3b444a', 1);
@@ -749,7 +838,7 @@ export function featureParts(f) {
       circle(c, 96, -52, 7, '#c0392b');
       text(c, 'BUS', 96, -52, { size: 5, color: '#fff' });
     })];
-    case 'car': return [carPart(f.x, f.y, f.rot || 0, f.color || '#8a2f2f', f.y + 30, null, f.police)];
+    case 'car': return [carPart(f.x, f.y, f.rot || 0, f.color || '#8a2f2f', f.y + 30, null, f.police, f.cab)];
     case 'truck': return [part(f.x - 66, f.y - 28, 132, 56, 54, f.y + 28, (c) => {
       shadowBlob(c, 70, 52, 72, 14, 0.35);
       // body
@@ -765,6 +854,88 @@ export function featureParts(f) {
       }
       text(c, 'TACOS LUPITA', 48, 34, { size: 7, color: '#c62828' });
       for (const wx of [24, 108]) circle(c, wx, 42, 6, '#111');
+    })];
+    case 'boxtruck': return [part(f.x - 82, f.y - 30, 164, 60, 60, f.y + 30, (c) => {
+      shadowBlob(c, 86, 58, 86, 14, 0.35);
+      box(c, 0, 0, 120, 46, 58, '#e8e2d4', '#cfc8b8', { r: 3 });
+      text(c, 'BAYOU WAREHOUSE', 60, -2, { size: 7, color: '#2c5aa0' });
+      fillRR(c, 118, 6, 44, 40, 5, '#2c5aa0', '#16305a', 1);
+      fillRR(c, 130, 12, 26, 14, 2, '#2a3a48', null);
+      for (const wx of [24, 96, 140]) circle(c, wx, 50, 7, '#111');
+    })];
+    case 'pallets': return [part(f.x - 42, f.y - 20, 84, 40, 22, f.y + 20, (c) => {
+      for (let r = 0; r < 3; r++) {
+        fillRR(c, 2, 26 - r * 10, 80, 9, 1, '#a07a4a', '#5a4026', 1);
+        for (let k = 0; k < 5; k++) line(c, 6 + k * 18, 27 - r * 10, 6 + k * 18, 34 - r * 10, 'rgba(60,40,20,0.5)', 1);
+      }
+    })];
+    case 'oilcan': return [part(f.x - 10, f.y - 8, 20, 16, 22, f.y + 8, (c) => {
+      fillRR(c, 2, -14, 16, 26, 3, '#2c5aa0', '#16305a', 1);
+      ellipse(c, 10, -14, 8, 3, '#3b6fa0');
+      line(c, 2, -4, 18, -4, '#16305a', 1);
+    })];
+    case 'portapotty': return [part(f.x - 20, f.y - 16, 40, 30, 70, f.y + 14, (c) => {
+      box(c, 0, 4, 40, 26, 64, '#2c7a4b', '#24683f', { r: 3 });
+      fillRR(c, 8, -30, 24, 54, 2, null, 'rgba(0,0,0,0.25)', 1);
+      circle(c, 30, -2, 2, '#c7ccd1');
+      text(c, 'OCCUPIED', 20, -40, { size: 4, color: '#c62828' });
+    })];
+    case 'hoop': return [part(f.x - 30, f.y - 6, 60, 12, 110, f.y + 4, (c) => {
+      const right = f.face === 'right';
+      line(c, 30, 6, 30, -86, '#5d656c', 4);
+      const bx = right ? 34 : 10;
+      fillRR(c, bx, -110, 16, 30, 1, '#f4f4f0', '#5d656c', 1);
+      fillRR(c, bx + 4, -98, 8, 8, 0, null, '#c62828', 1);
+      c.strokeStyle = '#ff6a2a';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.ellipse(right ? bx + 22 : bx - 6, -88, 8, 3, 0, 0, Math.PI * 2);
+      c.stroke();
+      for (let k = 0; k < 4; k++) line(c, (right ? bx + 16 : bx - 12) + k * 4, -88, (right ? bx + 18 : bx - 10) + k * 3, -76, 'rgba(255,255,255,0.7)', 0.8);
+    })];
+    case 'salecar': return [part(f.x - 56, f.y - 56, 112, 112, 0, f.y + 30, (c) => {
+      c.translate(56, 56);
+      drawCar(c, f.rot || 0, f.color || '#2f4f8a', null, false, false, {});
+      c.rotate(0);
+      fillRR(c, -22, -10, 44, 20, 3, '#ffeb3b', '#c62828', 1.5);
+      text(c, `$${({ sedan: 900, pickup: 1700, coupe: 3200 })[f.model] || 999}`, 0, 0.5, { size: 9, color: '#c62828' });
+    }, 0)];
+    case 'lumber': return [part(f.x - 36, f.y - 18, 72, 36, 26, f.y + 18, (c) => {
+      for (let r = 0; r < 4; r++) for (let k = 0; k < 5; k++) fillRR(c, 4 + k * 13 + (r % 2) * 3, 26 - r * 7, 64 / 5, 6, 1, ['#d8b47a', '#c8a06a', '#e2c08a'][(k + r) % 3], 'rgba(90,60,30,0.5)', 0.6);
+      line(c, 2, 4, 70, 4, '#c62828', 1.5);
+    })];
+    case 'blocks': return [part(f.x - 36, f.y - 18, 72, 36, 30, f.y + 18, (c) => {
+      fillRR(c, 0, 26, 72, 8, 1, '#a07a4a', null);
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) fillRR(c, 2 + k * 17 + (r % 2) * 4, 18 - r * 9, 16, 9, 1, '#b4ada0', 'rgba(0,0,0,0.3)', 0.8);
+    })];
+    case 'frame': return [part(f.x, f.y, f.w, f.h, 80, f.y + f.h, (c, w, h) => {
+      // a half-built wood frame house: slab, studs, top plates
+      fillRR(c, 0, 0, w, h, 2, '#b4ada0', '#7a7468', 1);
+      texture(c, 0, 0, w, h, 'grain', 0.2, 'overlay');
+      c.strokeStyle = '#d8b47a';
+      c.lineWidth = 4;
+      const studs = (x0, y0, x1, y1) => {
+        const n = Math.round(Math.hypot(x1 - x0, y1 - y0) / 16);
+        for (let k = 0; k <= n; k++) {
+          const px = x0 + ((x1 - x0) * k) / n;
+          const py = y0 + ((y1 - y0) * k) / n;
+          line(c, px, py, px, py - 64, '#d8b47a', 3);
+        }
+        line(c, x0, y0 - 64, x1, y1 - 64, '#c8a06a', 5);
+      };
+      studs(8, 10, w - 8, 10);
+      studs(8, 10, 8, h - 50);
+      studs(w - 8, 10, w - 8, h - 50);
+      line(c, 8, h - 8, w - 60, h - 8, '#c8a06a', 5);
+      for (let k = 8; k < w - 60; k += 16) line(c, k, h - 8, k, h - 70, '#d8b47a', 3);
+    })];
+    case 'pump': return [part(f.x - 18, f.y - 12, 36, 24, 56, f.y + 12, (c) => {
+      fillRR(c, 0, 14, 36, 10, 2, '#9aa3ab', '#5d656c', 1);
+      box(c, 6, 12, 24, 10, 50, '#c62828', '#a12521', { r: 3 });
+      fillRR(c, 9, -26, 18, 12, 1, '#111', null);
+      text(c, '3.29', 18, -20, { size: 5, color: '#7cf29a' });
+      line(c, 30, -10, 36, 6, '#1d1d1d', 2);
+      fillRR(c, 9, -40, 18, 8, 1, '#ffd23f', null);
     })];
     case 'tires': return [part(f.x - 16, f.y - 10, 32, 20, 18, f.y + 10, (c) => {
       for (let k = 0; k < 3; k++) {
@@ -838,6 +1009,37 @@ export function canopyPart(f) {
       }
     }, 0);
   }
+  if (f.type === 'canopy') {
+    return part(f.x, f.y, f.w, f.h, 0, 0, (c, w, h) => {
+      fillRR(c, 4, 4, w, h, 4, 'rgba(0,0,0,0.25)', null);
+      fillRR(c, 0, 0, w, h, 4, 'rgba(230,232,236,0.88)', '#8d949b', 2);
+      c.fillStyle = 'rgba(198,40,40,0.9)';
+      c.fillRect(0, 0, w, 10);
+      c.fillRect(0, h - 10, w, 10);
+      for (let k = 30; k < w; k += 70) circle(c, k, h / 2, 9, 'rgba(255,250,220,0.85)');
+      text(c, 'GAS & GO', w / 2, h / 2, { size: 14, color: 'rgba(198,40,40,0.8)' });
+    }, 6);
+  }
+  if (f.type === 'bunting') {
+    return part(f.x, f.y - 10, f.w, 20, 0, 0, (c, w) => {
+      c.strokeStyle = 'rgba(40,40,40,0.6)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(w / 2, 14, w, 0);
+      c.stroke();
+      for (let k = 6; k < w; k += 14) {
+        const t = k / w;
+        const yy = 2 * t * (1 - t) * 14;
+        c.fillStyle = ['#c62828', '#f4f4f0', '#2c5aa0', '#ffd23f'][Math.floor(k / 14) % 4];
+        c.beginPath();
+        c.moveTo(k - 5, yy);
+        c.lineTo(k + 5, yy);
+        c.lineTo(k, yy + 10);
+        c.fill();
+      }
+    }, 4);
+  }
   if (f.type === 'busstop') {
     return part(f.x - 54, f.y - 2, 108, 40, 0, 0, (c) => {
       fillRR(c, 0, -46, 108, 40, 3, 'rgba(90,100,110,0.82)', '#3b444a', 2);
@@ -848,24 +1050,32 @@ export function canopyPart(f) {
 }
 
 // Top-down car. rot = heading (0 = facing +x).
-export function carPart(x, y, rot, color, key, dmg = null, police = false) {
+export function carPart(x, y, rot, color, key, dmg = null, police = false, cab = false) {
   const L = 92;
   const W = 42;
   const R = Math.ceil(Math.hypot(L, W) / 2) + 6;
   return part(x - R, y - R, R * 2, R * 2, 0, key, (c) => {
     c.translate(R, R);
-    drawCar(c, rot, color, dmg, false, police);
+    drawCar(c, rot, color, dmg, false, police, { cab });
   }, 0);
 }
 
-export function drawCar(c, rot, color, dmg = null, lights = false, police = false) {
-  const L = 92;
-  const W = 42;
+export function drawCar(c, rot, color, dmg = null, lights = false, police = false, o = {}) {
+  const L = o.len || 92;
+  const W = o.wid || 42;
   c.save();
   c.rotate(rot);
   shadowBlob(c, 4, 6, L * 0.58, W * 0.62, 0.38);
   // tires
   for (const [tx, ty] of [[-L * 0.32, -W / 2], [L * 0.3, -W / 2], [-L * 0.32, W / 2], [L * 0.3, W / 2]]) fillRR(c, tx - 9, ty - 4, 18, 8, 2, '#111', null);
+  // driver door swinging open (left side = -y)
+  if (o.door > 0) {
+    c.save();
+    c.translate(L * 0.18, -W / 2);
+    c.rotate(-o.door * 1.1);
+    fillRR(c, -L * 0.26, -3, L * 0.26, 5, 2, shade(color, -0.1), shade(color, -0.5), 1);
+    c.restore();
+  }
   // body
   fillRR(c, -L / 2, -W / 2, L, W, 10, color, shade(color, -0.5), 1.5);
   hgrad(c, -L / 2, -W / 2, L, W, [[0, 'rgba(0,0,0,0.15)'], [0.5, 'rgba(255,255,255,0.08)'], [1, 'rgba(0,0,0,0.2)']]);
@@ -876,13 +1086,30 @@ export function drawCar(c, rot, color, dmg = null, lights = false, police = fals
   fillRR(c, L * 0.08, -W * 0.36, L * 0.16, W * 0.72, 4, '#2a3a48', null);
   fillRR(c, -L * 0.24, -W * 0.34, L * 0.1, W * 0.68, 3, '#2a3a48', null);
   line(c, L * 0.1, -W * 0.3, L * 0.2, W * 0.1, 'rgba(255,255,255,0.25)', 2);
+  // driver's head through the glass
+  if (o.driver) {
+    circle(c, L * 0.02, -W * 0.16, 6.5, o.driver.hairColor || '#1a120c');
+    circle(c, L * 0.04, -W * 0.16, 5, o.driver.skin);
+  }
   // roof
-  fillRR(c, -L * 0.13, -W * 0.33, L * 0.2, W * 0.66, 4, shade(color, 0.08), null);
+  if (o.pickup) {
+    fillRR(c, -L / 2 + 4, -W * 0.4, L * 0.36, W * 0.8, 3, shade(color, -0.35), 'rgba(0,0,0,0.4)', 1);
+    for (let k = 1; k < 4; k++) line(c, -L / 2 + 4 + k * L * 0.09, -W * 0.38, -L / 2 + 4 + k * L * 0.09, W * 0.38, 'rgba(0,0,0,0.25)', 1);
+  } else fillRR(c, -L * 0.13, -W * 0.33, L * 0.2, W * 0.66, 4, shade(color, 0.08), null);
+  if (o.cab) {
+    fillRR(c, -L * 0.06, -W * 0.14, L * 0.1, W * 0.28, 2, '#1d1d1d', null);
+    text(c, 'TAXI', -L * 0.01, 0.5, { size: 5, color: '#ffd23f' });
+    for (let k = -2; k < 3; k++) fillRR(c, L * 0.25, k * 6 - 3, 6, 6, 0, (k + 10) % 2 ? '#1d1d1d' : '#f4f4f0', null);
+  }
   // lights
   fillRR(c, L / 2 - 5, -W / 2 + 4, 4, 8, 1, lights ? '#fffbe0' : '#e8e4c9', null);
   fillRR(c, L / 2 - 5, W / 2 - 12, 4, 8, 1, lights ? '#fffbe0' : '#e8e4c9', null);
-  fillRR(c, -L / 2 + 1, -W / 2 + 4, 3, 8, 1, '#b3261e', null);
-  fillRR(c, -L / 2 + 1, W / 2 - 12, 3, 8, 1, '#b3261e', null);
+  fillRR(c, -L / 2 + 1, -W / 2 + 4, 3, 8, 1, o.brake ? '#ff2a1f' : '#b3261e', null);
+  fillRR(c, -L / 2 + 1, W / 2 - 12, 3, 8, 1, o.brake ? '#ff2a1f' : '#b3261e', null);
+  if (o.brake) {
+    circle(c, -L / 2 - 2, -W / 2 + 8, 7, 'rgba(255,40,30,0.35)');
+    circle(c, -L / 2 - 2, W / 2 - 8, 7, 'rgba(255,40,30,0.35)');
+  }
   // mirrors
   fillRR(c, L * 0.12, -W / 2 - 4, 6, 4, 1, shade(color, -0.3), null);
   fillRR(c, L * 0.12, W / 2, 6, 4, 1, shade(color, -0.3), null);
@@ -953,6 +1180,8 @@ export function drawItem(c, def, s = 24, it = null) {
     case 'box': fillRR(c, -11, -9, 22, 18, 1, '#c8a06a', '#7a5a2e', 1); line(c, -11, -3, 11, -3, '#a07a44', 2); line(c, 0, -9, 0, -3, '#a07a44', 2); text(c, 'SODA', 0, 3, { size: 5, color: '#7a2020' }); break;
     case 'linen': fillRR(c, -11, -6, 22, 12, 3, '#f6f8f8', '#9aa3ab', 1); line(c, -9, -1, 9, -1, 'rgba(0,0,0,0.12)', 1); line(c, -9, 2, 9, 2, 'rgba(0,0,0,0.12)', 1); break;
     case 'plates': circle(c, 0, 0, 10, '#1d1d1d'); circle(c, 0, 0, 3, '#5d656c'); circle(c, -3, -3, 2, 'rgba(255,255,255,0.15)'); break;
+    case 'lumber': c.rotate(0.5); for (let k = 0; k < 3; k++) fillRR(c, -3 + k * 3 - 3, -13, 3, 26, 0.5, ['#d8b47a', '#c8a06a', '#e2c08a'][k], 'rgba(90,60,30,0.5)', 0.5); break;
+    case 'cinder': for (let k = 0; k < 2; k++) fillRR(c, -11 + k * 11, -6, 10, 12, 1, '#b4ada0', 'rgba(0,0,0,0.3)', 0.8); break;
     case 'dumbbell': line(c, -8, 0, 8, 0, '#9aa3ab', 3); fillRR(c, -12, -6, 6, 12, 2, '#1d1d1d', null); fillRR(c, 6, -6, 6, 12, 2, '#1d1d1d', null); break;
     case 'book': case 'manual': fillRR(c, -7, -10, 14, 20, 1.5, def === 'manual' ? '#2c5aa0' : '#8e3b2f', '#222', 1); fillRR(c, 5, -9, 2, 18, 0, '#f2efe6', null); fillRR(c, -4, -6, 8, 3, 0, 'rgba(255,255,255,0.6)', null); break;
     default: circle(c, 0, 0, 7, '#999');

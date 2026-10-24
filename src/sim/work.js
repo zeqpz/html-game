@@ -54,6 +54,7 @@ export class Work {
     const J = JOBS[jobId];
     const js = this.jobState(jobId);
     if (js.hired) return { ok: false, text: 'You already work here.' };
+    if (J.license && !this.s.actors.p.licenses[J.license]) return { ok: false, text: 'You need a driver license for this one. Permits window at the 5th Precinct.' };
     const miss = this.meetsFloor(J.floor);
     if (miss.length) return { ok: false, text: `Not yet. Needs ${miss.join(', ')}.` };
     js.hired = true;
@@ -81,6 +82,7 @@ export class Work {
     const m = tod(this.s.t);
     if (!inWindow(m, hm(J.clockIn[0]), hm(J.clockIn[1]))) return { ok: false, text: `Shifts start between ${clock12(hm(J.clockIn[0]))} and ${clock12(hm(J.clockIn[1]))}.` };
     if (npc.room !== J.place) return { ok: false, text: `Find me at ${sim.world.room(J.place).name}.` };
+    if (J.license && !this.s.actors.p.licenses[J.license]) return { ok: false, text: 'Not without a driver license, hon.' };
     this.startShift(jobId);
     return { ok: true, text: pickOne(sim, ["Good timing. Let's go.", 'Alright, here\'s your list. Move.', "Clock's running. Get to it."]) };
   }
@@ -113,6 +115,12 @@ export class Work {
         tasks.push(pickup);
         tasks.push({ kind: 'deliver', room: to.room, prop: to.prop, item: T.item, label: T.drop.replace('{to}', to.label) });
         last = to;
+      } else if (T.kind === 'fare') {
+        const pool = J.stops.slice();
+        const a = pool.splice(Math.floor(sim.rng.next() * pool.length), 1)[0];
+        const b = pool.splice(Math.floor(sim.rng.next() * pool.length), 1)[0];
+        tasks.push({ kind: 'goto', room: a[0], x: a[1], y: a[2], label: `Pick up a fare at ${a[3]}`, fare: 'pickup' });
+        tasks.push({ kind: 'goto', room: b[0], x: b[1], y: b[2], label: `Drop them at ${b[3]}`, fare: 'drop' });
       } else if (T.kind === 'hold') {
         const at = sim.rng.pick(this.targets(J, T.at));
         tasks.push({ kind: 'hold', room: at.room, prop: at.prop, dur: T.dur, label: T.label.replace('{to}', at.label) });
@@ -125,6 +133,12 @@ export class Work {
     const start = this.s.t;
     const close = start - tod(start) + hm(J.closeBy);
     this.s.job.shift = { job: jobId, start, due: Math.min(start + 300, close), tasks, i: 0, away: 0 };
+    if (J.vehicle) {
+      const sp = sim.world.room('st_canal_main').def.carSpawn.cab;
+      const cab = sim.cars.create({ model: J.vehicle, color: '#e8b923', room: 'st_canal_main', x: sp.x, y: sp.y, rot: sp.rot, job: jobId, fuel: 100 });
+      this.s.job.shift.car = cab.id;
+      sim.log('Your cab is waiting in the lot out back.');
+    }
     if (J.gear) {
       const g = newItem(sim, J.gear, { order: true, job: jobId });
       const p = this.s.actors.p;
@@ -141,6 +155,12 @@ export class Work {
   spot(roomId) {
     const sim = this.sim;
     const r = sim.world.room(roomId);
+    const J = this.s.job.shift ? JOBS[this.s.job.shift.job] : null;
+    const area = Object.values(JOBS).find((j) => j.place === roomId && j.area)?.area;
+    if (area) {
+      const pt = sim.world.randomPoint(roomId, sim.rng, area[0], area[1], area[2]);
+      return { x: pt.x, y: pt.y };
+    }
     if (r.kind === 'street') {
       for (let i = 0; i < 20; i++) {
         const pt = sim.world.randomPoint(roomId, sim.rng);
@@ -236,6 +256,36 @@ export class Work {
       const it = this.s.items[uid];
       if (it.job === jobId) destroy(this.sim, it);
     }
+    const sim = this.sim;
+    for (const id in this.s.cars) {
+      const car = this.s.cars[id];
+      if (car.job !== jobId) continue;
+      if (sim.player.car === id) sim.cars.exit(true);
+      delete this.s.cars[id];
+    }
+  }
+
+  // Every step: fares complete when you pull up in the cab and slow down.
+  tick() {
+    const sim = this.sim;
+    const sh = this.s.job.shift;
+    if (!sh) return;
+    const task = sh.tasks[sh.i];
+    if (!task || task.kind !== 'goto') return;
+    const p = this.s.actors.p;
+    const car = p.car && this.s.cars[p.car];
+    if (!car || car.job !== sh.job || car.room !== task.room) return;
+    if (Math.hypot(car.x - task.x, car.y - task.y) > 80 || sim.cars.speed(car) > 70) return;
+    if (task.fare === 'pickup') {
+      sim.toast('Fare in. "Hey. Thanks for stopping."', 'good');
+      sim.sfx('door');
+    } else {
+      const tip = sim.rng.int(1, 6) + Math.round(p.stats.reputation / 30);
+      sh.tips = (sh.tips || 0) + tip;
+      sim.toast(`Dropped off. +$${tip} tip at the end of the shift.`, 'good');
+      sim.sfx('cash');
+    }
+    this.advance();
   }
 
   finishShift() {
@@ -246,7 +296,7 @@ export class Work {
     const rank = J.ranks[js.rank];
     const p = this.s.actors.p;
     const boss = this.s.actors[J.boss];
-    const tips = sim.rng.int(0, 6) + Math.round(p.stats.reputation / 25);
+    const tips = sim.rng.int(0, 6) + Math.round(p.stats.reputation / 25) + (sh.tips || 0);
     this.clearJobItems(sh.job);
     addCash(sim, p, rank.pay + tips);
     js.hours += J.hours;

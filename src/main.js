@@ -164,6 +164,7 @@ class Game {
         sim.input.mx = mv.x;
         sim.input.my = mv.y;
         sim.input.sprint = mv.sprint;
+        sim.input.hand = mv.hand;
         Object.assign(sim.edges, edges);
         this.acc += dt;
         let n = 0;
@@ -191,11 +192,14 @@ class Game {
     if (this.playing) this.ui.frame(dt);
     const room = sim.world.room(sim.player.room);
     const rs = sim.s.rooms[sim.player.room] || {};
+    const car = this.playing && sim.player.car ? sim.s.cars[sim.player.car] : null;
     this.audio.update({
       outdoors: room && room.kind === 'street',
       rain: sim.weather.rain,
-      music: !this.playing || rs.radio || (rs.music && rs.music > sim.s.t),
+      music: !this.playing || rs.radio || (rs.music && rs.music > sim.s.t) || (car && car.radio),
       musicNear: this.playing,
+      engine: car && sim.player.licenses.driver && car.fuel > 0 ? car.rpm || 0 : -1,
+      skid: car ? car.skid || 0 : 0,
     });
     if (this.playing && sim.wantSave && now - this.lastSave > 20000) {
       sim.wantSave = false;

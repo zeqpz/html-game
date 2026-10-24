@@ -65,7 +65,7 @@ export class Input {
       x /= len;
       y /= len;
     }
-    return { x, y, sprint };
+    return { x, y, sprint, hand: k.has('Space') || this.touchHand };
   }
 
   take() {
@@ -122,11 +122,18 @@ export class Input {
         e.preventDefault();
         e.stopPropagation();
         const act = btn.dataset.act;
+        if (act === 'back') this.touchHand = true;
         if (act === 'sprint') {
           this.touchSprint = !this.touchSprint;
           btn.classList.toggle('on', this.touchSprint);
         } else this.press(act);
       });
+    }
+    for (const btn of document.querySelectorAll('[data-act="back"]')) {
+      const up = () => (this.touchHand = false);
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('pointercancel', up);
+      btn.addEventListener('pointerleave', up);
     }
     window.addEventListener('touchstart', () => document.body.classList.add('touch'), { once: true, passive: true });
   }

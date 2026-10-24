@@ -2,6 +2,7 @@
 
 import { paintInterior, paintStreet, RES_IN, RES_ST } from './paint.js';
 import { propParts, featureParts, canopyPart, drawItem, drawCar } from './sprites.js';
+import { MODELS } from '../data/cars.js';
 import { drawPerson } from './people.js';
 import { makeCanvas, shade, alpha, fillRR, circle, ellipse, line, text } from './gfx.js';
 import { scratch } from '../sim/actors.js';
@@ -125,22 +126,47 @@ export class View {
 
     // camera
     const street = room.kind === 'street';
+    const car = !this.demo && p.car ? sim.s.cars[p.car] : null;
     const fitH = street ? 620 : room.h + 30;
     const fitW = street ? 900 : room.w + 30;
     let zoom = Math.min(H / fitH, W / fitW);
     zoom = clamp(street ? zoom : Math.max(zoom, Math.min(H / 420, 1.25)), 0.55, 2.6);
     if (W < 700) zoom = Math.max(zoom, street ? 0.8 : 0.85);
-    if (this.cam.room !== room.id) {
+    if (car) zoom *= 1 - 0.3 * Math.min(1, sim.cars.speed(car) / 520);
+    if (this.cam.room !== room.id && !(car && this.cam.room)) {
       this.cam.x = p.x;
       this.cam.y = p.y - 20;
-      this.cam.room = room.id;
     }
-    this.cam.zoom = lerp(this.cam.zoom, zoom, Math.min(1, dt * 6));
+    // street edges rebase coordinates; shift the camera with them so the move is seamless
+    if (this.cam.room && this.cam.room !== room.id) {
+      const prev = sim.world.room(this.cam.room);
+      if (prev && prev.kind === 'street' && street) {
+        this.cam.x += (prev.grid[0] - room.grid[0]) * CELL;
+        this.cam.y += (prev.grid[1] - room.grid[1]) * CELL;
+      } else if (!car) {
+        this.cam.x = p.x;
+        this.cam.y = p.y - 20;
+      }
+    }
+    this.cam.room = room.id;
+    this.cam.zoom = lerp(this.cam.zoom, zoom, Math.min(1, dt * 4));
+    // chase view: the car points up the screen, so A is left and D is right
+    const rotT = car && this.chase !== false ? -(car.rot + Math.PI / 2) : 0;
+    let dr = rotT - this.cam.rot;
+    while (dr > Math.PI) dr -= Math.PI * 2;
+    while (dr < -Math.PI) dr += Math.PI * 2;
+    this.cam.rot += dr * Math.min(1, dt * (car ? 3.2 : 6));
+    if (!car && Math.abs(this.cam.rot) < 0.002) this.cam.rot = 0;
     const z = this.cam.zoom;
+    const rot = this.cam.rot;
     const halfW = W / 2 / z;
     const halfH = H / 2 / z;
     let tx = p.x;
     let ty = p.y - 24;
+    if (car) {
+      tx = car.x + car.vx * 0.42;
+      ty = car.y + car.vy * 0.42;
+    }
     if (this.demo) {
       // title screen: drift slowly around the intersection
       tx = 700 + Math.cos(this.time * 0.05) * 330;
@@ -149,13 +175,13 @@ export class View {
     if (!street) {
       tx = room.w <= halfW * 2 ? room.w / 2 : clamp(tx, halfW, room.w - halfW);
       ty = room.h < halfH * 2 ? room.h / 2 : clamp(ty, halfH, room.h - halfH);
-    } else {
+    } else if (Math.abs(rot) < 0.01) {
       if (!room.edges.w) tx = Math.max(tx, halfW - 30);
       if (!room.edges.e) tx = Math.min(tx, CELL - halfW + 30);
       if (!room.edges.n) ty = Math.max(ty, halfH - 30);
       if (!room.edges.s) ty = Math.min(ty, CELL - halfH + 30);
     }
-    const k = Math.min(1, dt * 7);
+    const k = Math.min(1, dt * (car ? 5 : 7));
     this.cam.x = lerp(this.cam.x, tx, k);
     this.cam.y = lerp(this.cam.y, ty, k);
     let sx = 0;
@@ -165,11 +191,18 @@ export class View {
       sy = (Math.random() - 0.5) * this.shake;
       this.shake = Math.max(0, this.shake - dt * 40);
     }
-    const toScreen = (wx, wy) => [(wx - this.cam.x) * z + W / 2 + sx, (wy - this.cam.y) * z + H / 2 + sy];
+    const cr = Math.cos(rot);
+    const sr = Math.sin(rot);
+    const toScreen = (wx, wy) => {
+      const dx = (wx - this.cam.x) * z;
+      const dy = (wy - this.cam.y) * z;
+      return [dx * cr - dy * sr + W / 2 + sx, dx * sr + dy * cr + H / 2 + sy];
+    };
     this.toScreen = toScreen;
 
     ctx.save();
     ctx.translate(W / 2 + sx, H / 2 + sy);
+    ctx.rotate(rot);
     ctx.scale(z, z);
     ctx.translate(-this.cam.x, -this.cam.y);
 
@@ -192,7 +225,9 @@ export class View {
       ctx.drawImage(b.canvas, v.ox, v.oy, b.canvas.width / b.res, b.canvas.height / b.res);
     }
 
-    // ground layer: items, shift markers
+    // ground layer: skid marks, items, shift markers
+    this.updateSkids(sim, dt);
+    this.drawSkids(ctx, visible);
     for (const v of visible) this.drawGround(ctx, sim, v);
     this.drawShiftMarkers(ctx, sim, room);
 
@@ -201,6 +236,13 @@ export class View {
     for (const v of visible) {
       const parts = this.roomParts(v.room);
       for (const sp of parts.sprites) list.push({ key: sp.key + v.oy, sp, ox: v.ox, oy: v.oy });
+    }
+    for (const id in sim.s.cars || {}) {
+      const c = sim.s.cars[id];
+      if (c.stored) continue;
+      const v = visible.find((q) => q.room.id === c.room);
+      if (!v) continue;
+      list.push({ key: c.y + v.oy + 18, car: c, ox: v.ox, oy: v.oy });
     }
     for (const id in sim.s.actors) {
       const a = sim.s.actors[id];
@@ -217,6 +259,7 @@ export class View {
     const target = this.demo ? null : sim.target();
     for (const d of list) {
       if (d.sp) ctx.drawImage(d.sp.canvas, d.sp.ox + d.ox, d.sp.oy + d.oy, d.sp.w, d.sp.h);
+      else if (d.car) this.drawSimCar(ctx, sim, d.car, d.ox, d.oy, light, target);
       else this.drawActor(ctx, sim, d.actor, d.ox, d.oy, target);
     }
 
@@ -240,7 +283,10 @@ export class View {
       const parts = this.roomParts(v.room);
       this.drawPowerLines(ctx, parts.poles, v);
       for (const cp of parts.canopies) {
-        const under = p.room === v.room.id && Math.abs(p.x - cp.f.x) < (cp.f.r || 50) && p.y < cp.f.y + 30 && p.y > cp.f.y - (cp.f.r || 50) * 1.6;
+        const f = cp.f;
+        const under = p.room === v.room.id && (f.w
+          ? p.x > f.x && p.x < f.x + f.w && p.y > f.y && p.y < f.y + (f.h || 20) + 20
+          : Math.abs(p.x - f.x) < (f.r || 50) && p.y < f.y + 30 && p.y > f.y - (f.r || 50) * 1.6);
         ctx.globalAlpha = under ? 0.45 : 0.96;
         ctx.drawImage(cp.canvas, cp.ox + v.ox, cp.oy + v.oy, cp.w, cp.h);
         ctx.globalAlpha = 1;
@@ -254,6 +300,72 @@ export class View {
     this.drawLabels(ctx, sim, room, visible, target, dt);
     this.drawFloats(ctx, dt);
     this.drawScreenFx(ctx, sim, dt, W, H);
+  }
+
+  // ------------------------------------------------------------ cars
+  drawSimCar(ctx, sim, c, ox, oy, light, target) {
+    const p = sim.player;
+    const driven = p.car === c.id;
+    const M = MODELS[c.model];
+    const braking = driven && sim.input.my > 0.2;
+    ctx.save();
+    ctx.translate(c.x + ox, c.y + oy);
+    drawCar(ctx, c.rot, c.color, c.dmg, driven && light.day < 0.6, false, {
+      brake: braking, door: c.doorT > 0 ? Math.sin((c.doorT / 0.45) * Math.PI) : 0,
+      driver: driven ? p.look : null, cab: M.cab, pickup: M.bed, len: M.len, wid: M.wid,
+    });
+    ctx.restore();
+    if (target && target.type === 'car' && target.id === c.id && !driven) {
+      const d = sim.cars.doorPoint(c);
+      const bob = Math.sin(this.time * 5) * 2;
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath();
+      ctx.moveTo(d.x + ox - 6, d.y + oy - 24 + bob);
+      ctx.lineTo(d.x + ox + 6, d.y + oy - 24 + bob);
+      ctx.lineTo(d.x + ox, d.y + oy - 16 + bob);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  updateSkids(sim, dt) {
+    if (!this.skids) this.skids = [];
+    for (const id in sim.s.cars || {}) {
+      const c = sim.s.cars[id];
+      if (c.stored || !c.skid || c.skid < 0.2 || sim.cars.speed(c) < 70) {
+        if (this.skidPrev) delete this.skidPrev[id];
+        continue;
+      }
+      const M = MODELS[c.model];
+      const fx = Math.cos(c.rot);
+      const fy = Math.sin(c.rot);
+      const pts = [-1, 1].map((s) => [c.x - fx * M.len * 0.32 - fy * s * M.wid * 0.38, c.y - fy * M.len * 0.32 + fx * s * M.wid * 0.38]);
+      this.skidPrev = this.skidPrev || {};
+      const prev = this.skidPrev[id];
+      if (prev && prev.room === c.room) {
+        for (let k = 0; k < 2; k++) this.skids.push({ room: c.room, x1: prev.pts[k][0], y1: prev.pts[k][1], x2: pts[k][0], y2: pts[k][1], t: this.time, a: c.skid });
+      }
+      this.skidPrev[id] = { room: c.room, pts };
+    }
+    if (this.skids.length > 900) this.skids.splice(0, this.skids.length - 900);
+  }
+
+  drawSkids(ctx, visible) {
+    if (!this.skids || !this.skids.length) return;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 5;
+    for (const s of this.skids) {
+      const age = this.time - s.t;
+      if (age > 60) continue;
+      const v = visible.find((q) => q.room.id === s.room);
+      if (!v) continue;
+      ctx.strokeStyle = `rgba(15,15,15,${(0.22 + s.a * 0.25) * (1 - age / 60)})`;
+      ctx.beginPath();
+      ctx.moveTo(s.x1 + v.ox, s.y1 + v.oy);
+      ctx.lineTo(s.x2 + v.ox, s.y2 + v.oy);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
   }
 
   // ------------------------------------------------------------ lighting model
@@ -447,6 +559,7 @@ export class View {
     const blink = (this.time * 0.7 + a.id.length * 0.37) % 4 < 0.12;
     ctx.save();
     ctx.translate(a.x + ox, a.y + oy);
+    if (this.cam.rot) ctx.rotate(-this.cam.rot); // people stay upright in the chase view
     if (_.hurtT > 0) ctx.translate((Math.random() - 0.5) * 2, 0);
     ctx.scale(CHAR_SCALE, CHAR_SCALE);
     drawPerson(ctx, a.look, {
@@ -491,6 +604,16 @@ export class View {
         line(ctx, d.x, d.y, d.x + Math.cos(ha) * R * 0.5, d.y + Math.sin(ha) * R * 0.5, '#222', 1.6);
         line(ctx, d.x, d.y, d.x + Math.cos(ma) * R * 0.8, d.y + Math.sin(ma) * R * 0.8, '#222', 1);
         circle(ctx, d.x, d.y, 1.2, '#c0392b');
+      }
+    }
+    if (room.id === 'garage') {
+      const stored = Object.values(sim.s.cars || {}).find((c) => c.stored === 'stall');
+      if (stored) {
+        const M = MODELS[stored.model];
+        ctx.save();
+        ctx.translate(235, 380);
+        drawCar(ctx, -Math.PI / 2, stored.color, stored.dmg, false, false, { len: M.len, wid: M.wid, pickup: M.bed });
+        ctx.restore();
       }
     }
     for (const prop of room.props) {
@@ -582,7 +705,19 @@ export class View {
       const [fx, fy] = dirs[p.face];
       lights.push({ x: p.x + fx * 90, y: p.y + fy * 90 - 10, r: 140, color: '#fffbe0', a: 1 });
     }
-    const ws = (x, y) => [((x - this.cam.x) * z + this.W / 2 + sx) / 2, ((y - this.cam.y) * z + this.H / 2 + sy) / 2];
+    const ws = (x, y) => {
+      const [X, Y] = this.toScreen(x, y);
+      return [X / 2, Y / 2];
+    };
+    // headlights of the car you're driving
+    if (p.car && sim.s.cars[p.car]) {
+      const c = sim.s.cars[p.car];
+      const M = MODELS[c.model];
+      const fx = Math.cos(c.rot);
+      const fy = Math.sin(c.rot);
+      for (const d of [90, 170]) lights.push({ x: c.x + fx * (M.len / 2 + d), y: c.y + fy * (M.len / 2 + d) - 60 + 60, r: d === 90 ? 110 : 150, color: '#fff6d8', a: 0.9 });
+      lights.push({ x: c.x - fx * (M.len / 2 + 10), y: c.y - fy * (M.len / 2 + 10), r: 40, color: '#ff3b30', a: 0.5 });
+    }
     for (const li of lights) {
       const [lx, ly] = ws(li.x, li.y);
       const r = (li.r * z) / 2;

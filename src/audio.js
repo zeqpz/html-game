@@ -144,6 +144,15 @@ export class Audio {
         this.noise(t, 0.3, { freq: 5000, gain: 0.25, q: 1, type: 'highpass' });
         for (let i = 0; i < 5; i++) this.tone(t + Math.random() * 0.25, 0.12, { freq: 2500 + Math.random() * 3000, gain: 0.05, type: 'triangle' });
         break;
+      case 'crash':
+        this.noise(t, 0.6, { freq: 400, gain: 0.6, type: 'lowpass' });
+        this.tone(t, 0.4, { freq: 80, to: 30, gain: 0.6 });
+        this.noise(t + 0.05, 0.5, { freq: 4000, gain: 0.2, type: 'highpass' });
+        break;
+      case 'bump':
+        this.tone(t, 0.18, { freq: 120, to: 60, gain: 0.35 });
+        this.noise(t, 0.12, { freq: 600, gain: 0.2, type: 'lowpass' });
+        break;
       case 'card':
         this.noise(t, 0.12, { freq: 3000, gain: 0.08, q: 2 });
         this.tone(t + 0.3, 0.08, { freq: 1046, gain: 0.08, type: 'square' });
@@ -193,6 +202,48 @@ export class Audio {
     this.musicBus.gain.setTargetAtTime(music ? this.musicVol * (state.musicNear ? 0.28 : 0.12) : 0, t, 0.4);
     if (music) this.sequence();
     if (outdoors && Math.random() < 0.002) this.carPass();
+    this.engineUpdate(state.engine ?? -1, state.skid || 0);
+  }
+
+  engineUpdate(rpm, skid) {
+    const c = this.ctx;
+    const t = c.currentTime;
+    if (rpm >= 0 && !this.eng) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      const o2 = c.createOscillator();
+      o2.type = 'square';
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 500;
+      const g = c.createGain();
+      g.gain.value = 0;
+      o.connect(f);
+      o2.connect(f);
+      f.connect(g).connect(this.sfxBus);
+      o.start();
+      o2.start();
+      const sk = c.createBufferSource();
+      sk.buffer = this.noiseBuf;
+      sk.loop = true;
+      const sf = c.createBiquadFilter();
+      sf.type = 'bandpass';
+      sf.frequency.value = 2200;
+      sf.Q.value = 3;
+      const sg = c.createGain();
+      sg.gain.value = 0;
+      sk.connect(sf).connect(sg).connect(this.sfxBus);
+      sk.start();
+      this.eng = { o, o2, f, g, sg };
+    }
+    if (!this.eng) return;
+    const on = rpm >= 0;
+    const r = Math.max(0, rpm);
+    this.eng.o.frequency.setTargetAtTime(38 + r * 110, t, 0.08);
+    this.eng.o2.frequency.setTargetAtTime(19 + r * 55, t, 0.08);
+    this.eng.f.frequency.setTargetAtTime(300 + r * 1200, t, 0.1);
+    this.eng.g.gain.setTargetAtTime(on ? 0.05 + r * 0.06 : 0, t, 0.15);
+    this.eng.sg.gain.setTargetAtTime(on ? skid * 0.18 : 0, t, 0.05);
   }
 
   carPass() {

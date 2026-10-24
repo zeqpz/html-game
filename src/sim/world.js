@@ -114,6 +114,42 @@ function addFeature(r, f, ox, oy, solid) {
     }
     case 'picnic': solid(x - 36, y - 20, 72, 40, 'picnic'); break;
     case 'truck': solid(x - 64, y - 26, 128, 52, 'truck'); break;
+    case 'boxtruck': solid(x - 80, y - 28, 160, 56, 'truck'); break;
+    case 'pallets': solid(x - 40, y - 18, 80, 36, 'pallets'); break;
+    case 'oilcan': solid(x - 10, y - 8, 20, 16, 'oilcan'); break;
+    case 'portapotty': solid(x - 18, y - 14, 36, 28, 'portapotty'); break;
+    case 'hoop': solid(x - 6, y - 6, 12, 12, 'pole'); break;
+    case 'salecar': {
+      const horiz = Math.abs(Math.cos(f.rot || 0)) > 0.7;
+      if (horiz) solid(x - 46, y - 21, 92, 42, 'car'); else solid(x - 21, y - 46, 42, 92, 'car');
+      break;
+    }
+    case 'lumber': case 'blocks': {
+      solid(x - 34, y - 16, 68, 32, f.type);
+      r.props.push({ id: f.id, type: f.type, room: r.id, x: x - 34, y: y - 16, w: 68, h: 32, use: 'job', label: f.type === 'lumber' ? 'Lumber pile' : 'Cinder blocks', street: true, feature: true });
+      break;
+    }
+    case 'frame': {
+      solid(x, y, f.w, f.h, 'frame');
+      r.props.push({ id: f.id, type: 'frame', room: r.id, x, y, w: f.w, h: f.h, use: 'job', label: 'House frame', street: true, feature: true });
+      break;
+    }
+    case 'pump': {
+      solid(x - 14, y - 10, 28, 20, 'pump');
+      r.props.push({ id: f.id, type: 'pump', room: r.id, x: x - 14, y: y - 10, w: 28, h: 20, use: 'fuel', label: 'Gas pump', street: true, feature: true });
+      break;
+    }
+    case 'bayou': {
+      // water you can't walk or drive into, with a footbridge gap
+      const [b0, b1] = f.bridge || [0, 0];
+      if (b0 > 0) solid(x, y, b0, f.h, 'water');
+      if (b1 < f.w) solid(x + b1, y, f.w - b1, f.h, 'water');
+      if (f.bridge) {
+        solid(x + b0 - 4, y - 4, 4, f.h + 8, 'rail');
+        solid(x + b1, y - 4, 4, f.h + 8, 'rail');
+      }
+      break;
+    }
     case 'tires': solid(x - 14, y - 10, 28, 20, 'tires'); break;
     case 'icebox': solid(x - 22, y - 12, 44, 24, 'icebox'); break;
     case 'flagpole': solid(x - 3, y - 3, 6, 6, 'pole'); break;

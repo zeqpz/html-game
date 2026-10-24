@@ -11,6 +11,9 @@ import { Work } from './work.js';
 import { Police } from './police.js';
 import { updateBoard, pin, unpin } from './board.js';
 import { Money } from './money.js';
+import { Cars } from './cars.js';
+import { Licenses } from './licenses.js';
+import { MODELS } from '../data/cars.js';
 import { makePlayer, makeNpc, scratch, playerNeeds, walkSpeed, sprintMul, moveBody, staminaTick, faceToward, FACE_VEC, schedNow } from './actors.js';
 import { relV, adjustRel, remember, setTag, displayTag, witnesses, meet } from './memory.js';
 import { clamp, hm, tod, dayOf, inWindow, DAY, clock12, rectDist, rectHit, hashStr, weekday } from './util.js';
@@ -37,6 +40,8 @@ export class Sim {
     this.work = new Work(this);
     this.police = new Police(this);
     this.money = new Money(this);
+    this.cars = new Cars(this);
+    this.licenses = new Licenses(this);
     this.events = [];
     this.input = { mx: 0, my: 0, sprint: false };
     this.edges = {};
@@ -99,7 +104,11 @@ export class Sim {
     items.putInCont(sim, items.newItem(sim, 'cash', { n: 35 }), p.pockets);
     s.log.push({ t: s.t, text: `${weekday(s.t)} morning. Rent's paid through Sunday. $35 in your pocket.`, kind: '' });
     s.rng = sim.rng.s;
-    return new Sim(s);
+    const real = new Sim(s);
+    real.cars.giveStartCar();
+    s.flags.startCar = true;
+    s.log.push({ t: s.t, text: "Your old sedan is parked out front on Pecan St. It won't start for you until you get a driver license.", kind: '' });
+    return real;
   }
 
   static load(data) {
@@ -107,7 +116,12 @@ export class Sim {
     if (!s || typeof s !== 'object') throw new Error('Bad save');
     if (s.v > SAVE_VERSION) throw new Error(`Save is from a newer version (${s.v})`);
     migrate(s);
-    return new Sim(s);
+    const sim = new Sim(s);
+    if (!s.flags.startCar) {
+      sim.cars.giveStartCar();
+      s.flags.startCar = true;
+    }
+    return sim;
   }
 
   serialize() {
@@ -364,6 +378,9 @@ export class Sim {
     this.lastDm = dm;
 
     this.updatePlayer(dt);
+    this.cars.update(dt);
+    this.syncDriver();
+    this.work.tick();
     this.ai.update(dt);
     this.fight.update(dt);
     this.separate();
@@ -450,6 +467,17 @@ export class Sim {
     }
   }
 
+  // The driver rides along with the car.
+  syncDriver() {
+    const p = this.player;
+    if (!p.car) return;
+    const car = this.s.cars[p.car];
+    if (!car) return;
+    p.x = car.x;
+    p.y = car.y;
+    if (p.room !== car.room) this.changeRoom(car.room, { x: car.x, y: car.y }, 'edge');
+  }
+
   // ------------------------------------------------------------ player
   updatePlayer(dt) {
     const p = this.player;
@@ -496,6 +524,28 @@ export class Sim {
     }
 
     const frozen = this.dialog || this.ui.modal;
+    // behind the wheel: the car module reads driveInput
+    if (p.car) {
+      const car = this.s.cars[p.car];
+      if (!car || car.stored) {
+        p.car = null;
+        p.act = 'idle';
+      } else {
+        this.driveInput = frozen ? { mx: 0, my: 0, hand: true } : { mx: inp.mx, my: inp.my, hand: !!inp.hand };
+        if (frozen) return;
+        if (e.interact) {
+          const t = this.target();
+          if (t && t.type === 'pump') this.ui.modal = { type: 'fuel', car: car.id };
+          else this.cars.exit();
+        }
+        if (e.use) {
+          car.radio = !car.radio;
+          this.toast(car.radio ? 'Radio: KBYU 97.3 — slow and low.' : 'Radio off.', '');
+          this.sfx('click');
+        }
+        return;
+      }
+    }
     let mx = frozen ? 0 : inp.mx;
     let my = frozen ? 0 : inp.my;
     const moving = Math.hypot(mx, my) > 0.15;
@@ -635,6 +685,15 @@ export class Sim {
   target() {
     const p = this.player;
     if (p.downUntil || this.s.sleepUntil) return null;
+    if (p.car) {
+      // behind the wheel: a pump if you're stopped at one, else the door
+      const car = this.s.cars[p.car];
+      if (car && this.cars.speed(car) < 25) {
+        const pump = this.world.room(car.room).props.find((q) => q.use === 'fuel' && rectDist(q, car.x, car.y) < 70);
+        if (pump) return { type: 'pump', id: pump.id, label: 'Pump gas' };
+      }
+      return { type: 'car', id: p.car, label: 'Get out' };
+    }
     const [fx, fy] = FACE_VEC[p.face];
     let best = null;
     let bs = Infinity;
@@ -644,6 +703,9 @@ export class Sim {
         best = t;
       }
     };
+    // a car door
+    const car = this.cars.nearDoor(p.room, p.x, p.y, 34);
+    if (car) consider(10, { type: 'car', id: car.id, label: this.cars.hasKeys(car) ? `Get in · ${MODELS[car.model].name}` : car.owner === 'p' ? 'Your car (no keys on you)' : 'Locked car' });
     // loose items under you
     for (const u of this.roomState(p.room).items) {
       const it = this.s.items[u];
@@ -736,6 +798,8 @@ export class Sim {
       this.work.shiftInteract(null, p.x, p.y);
     } else if (t.type === 'prop') {
       this.useProp(this.world.prop(p.room, t.id));
+    } else if (t.type === 'car') {
+      this.cars.enter(this.s.cars[t.id]);
     }
   }
 
@@ -928,6 +992,22 @@ export class Sim {
         this.ui.modal = { type: 'license' };
         break;
       }
+      case 'garage': {
+        const staff = this.staffHere(p.room);
+        if (!staff) return this.toast('Nobody at the counter.', 'warn');
+        this.ui.modal = { type: 'garage', npc: staff.id };
+        break;
+      }
+      case 'stall': {
+        this.ui.modal = { type: 'garage', npc: null, stall: true };
+        break;
+      }
+      case 'dealer': {
+        const staff = this.staffHere(p.room);
+        if (!staff) return this.toast('Nobody at the desk.', 'warn');
+        this.ui.modal = { type: 'dealer', npc: staff.id };
+        break;
+      }
       case 'terminal': {
         this.ui.modal = { type: 'terminal' };
         break;
@@ -956,6 +1036,24 @@ export class Sim {
       case 'pay_fines': return this.cmdResult(this.money.payFines());
       case 'pay_bills': return this.cmdResult(this.money.payBills());
       case 'service': return this.service(a.shop, a.id, a.npc);
+      case 'test_start': {
+        const r = this.licenses.start(a.id);
+        if (r && !r.ok) this.toast(r.text, 'warn');
+        return r;
+      }
+      case 'test_answer': return this.licenses.answer(a.choice);
+      case 'refuel': {
+        const car = this.s.cars[a.car];
+        return car ? this.cmdResult(this.cars.refuel(car)) : null;
+      }
+      case 'repair': {
+        const car = this.s.cars[a.car];
+        return car ? this.cmdResult(this.cars.repair(car)) : null;
+      }
+      case 'buy_car': return this.cmdResult(this.cars.buy(a.model, a.color));
+      case 'stall_lease': return this.cmdResult(this.money.startLease('stall'));
+      case 'stall_store': return this.cmdResult(this.storeCar(a.car));
+      case 'stall_take': return this.cmdResult(this.takeCar());
       case 'sleep': return this.sleep(a.hours);
       case 'apply': {
         const r = this.work.apply(a.job);
@@ -1148,6 +1246,43 @@ export class Sim {
       this.sayText(npc, P === 'tired' ? 'Leave me alone!' : 'You don\'t scare me.');
       if (relV(npc, 'p') < -20 && this.rng.chance(0.5)) this.fight.squareUp(npc, p, true);
     }
+  }
+
+  // Cars parked on the apron in front of Lone Star Auto can go in the stall.
+  apronCar() {
+    return this.cars.near('st_canal_w', 240, 470, 230);
+  }
+
+  storeCar(id) {
+    const car = this.s.cars[id];
+    const L = this.s.leases.stall;
+    if (!L) return { ok: false, text: 'You don\'t lease a stall.' };
+    if (L.overdue) return { ok: false, text: 'Stall rent is overdue.' };
+    if (Object.values(this.s.cars).some((c) => c.stored === 'stall')) return { ok: false, text: 'The stall already has a car in it.' };
+    if (!car || car.owner !== 'p') return { ok: false, text: 'Park your car on the apron out front first.' };
+    if (this.player.car === car.id) return { ok: false, text: 'Get out of the car first.' };
+    car.stored = 'stall';
+    car.vx = car.vy = 0;
+    this.log(`Your ${MODELS[car.model].name} is in Stall 3.`);
+    this.wantSave = true;
+    return { ok: true, text: 'Stored in Stall 3.' };
+  }
+
+  takeCar() {
+    const L = this.s.leases.stall;
+    const car = Object.values(this.s.cars).find((c) => c.stored === 'stall');
+    if (!car) return { ok: false, text: 'The stall is empty.' };
+    if (L && L.overdue) return { ok: false, text: 'Stall rent is overdue. Earl won\'t open it.' };
+    const sp = ROOMS.st_canal_w.carSpawn.stall;
+    car.stored = null;
+    car.room = 'st_canal_w';
+    car.x = sp.x;
+    car.y = sp.y;
+    car.rot = sp.rot;
+    car.vx = car.vy = 0;
+    this.log('Earl rolls your car out onto the apron.');
+    this.wantSave = true;
+    return { ok: true, text: 'Your car is out front.' };
   }
 
   cmdResult(r) {

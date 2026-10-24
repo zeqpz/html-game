@@ -155,8 +155,72 @@ NPCS.push(
   },
 );
 
+// ---------------------------------------------------------------- stage 2 cast
+NPCS.push(
+  {
+    id: 'earl', name: 'Earl Pickens', short: 'Earl', personality: 'steady', role: 'Mechanic, Lone Star Auto',
+    look: { skin: '#d9a77c', hair: 'short', hairColor: '#8a7a6a', beard: 'full', hat: 'cap', hatColor: '#2b3a55', top: 'button', topColor: '#3b5a7a', bottom: 'jeans', bottomColor: '#2c3a52', shoes: '#3a2a1e', build: 'heavy', height: 1.02 },
+    stats: { strength: 60, agility: 30, intellect: 58, reputation: 62, aim: 35 },
+    cash: 300, home: 'home_earl', staffOf: 'garage',
+    sched: [['06:50', '19:00', 'work', 'garage', 'counter'], ['19:00', '20:00', 'eat', 'diner'], ['20:00', '06:50', 'sleep', 'home_earl']],
+    favors: [],
+  },
+  {
+    id: 'lou', name: 'Lou Marchetti', short: 'Lou', personality: 'volatile', role: 'Foreman, Bayou Warehouse',
+    look: { skin: '#e8be96', hair: 'buzz', hairColor: '#3a2a1e', beard: 'stubble', top: 'tee', topColor: '#ff8f00', bottom: 'jeans', bottomColor: '#3b4a6b', shoes: '#5a3a1e', build: 'heavy', height: 1.04 },
+    stats: { strength: 70, agility: 34, intellect: 44, reputation: 56, aim: 25 },
+    cash: 180, home: 'home_lou', staffOf: 'warehouse', boss: 'warehouse',
+    sched: [['05:40', '12:00', 'work', 'warehouse', 'desk'], ['12:00', '12:45', 'hang', 'st_main', 'taco'], ['12:45', '17:00', 'work', 'warehouse', 'desk'], ['17:00', '18:30', 'eat', 'diner'], ['18:30', '05:40', 'sleep', 'home_lou']],
+    favors: [],
+  },
+  {
+    id: 'hank', name: 'Hank Dalton', short: 'Hank', personality: 'sly', role: 'Salesman, Big Tex Motors',
+    look: { skin: '#f0c49e', hair: 'short', hairColor: '#c9a24a', hat: null, top: 'button', topColor: '#f2efe6', bottom: 'slacks', bottomColor: '#4a3a2a', shoes: '#3a2a1e', build: 'avg', height: 1.0, glasses: false, chain: true },
+    stats: { strength: 36, agility: 38, intellect: 60, reputation: 48, aim: 20 },
+    cash: 500, home: 'home_hank', staffOf: 'carlot',
+    sched: [['08:50', '19:00', 'work', 'carlot', 'desk'], ['19:00', '20:30', 'eat', 'diner'], ['20:30', '08:50', 'sleep', 'home_hank']],
+    favors: [],
+  },
+  {
+    id: 'lupe', name: 'Guadalupe "Lupe" Rios', short: 'Lupe', personality: 'steady', role: 'Dispatcher, Bayou City Cabs',
+    look: { skin: '#b98a62', hair: 'ponytail', hairColor: '#1c120c', top: 'hoodie', topColor: '#e8b923', bottom: 'jeans', bottomColor: '#2c3a52', shoes: '#f0f0f0', build: 'avg', height: 0.97, glasses: true },
+    stats: { strength: 34, agility: 42, intellect: 62, reputation: 58, aim: 18 },
+    cash: 150, home: 'home_lupe', staffOf: 'depot', boss: 'taxi',
+    sched: [['05:30', '22:30', 'work', 'depot', 'counter'], ['22:30', '05:30', 'sleep', 'home_lupe']],
+    favors: [],
+  },
+  {
+    id: 'marisol', name: 'Marisol Vega', short: 'Marisol', personality: 'proud', role: 'Foreman, Canal St job site',
+    look: { skin: '#a8754f', hair: 'ponytail', hairColor: '#24140c', hat: 'cap', hatColor: '#ffd23f', top: 'tee', topColor: '#ff8f00', bottom: 'jeans', bottomColor: '#3b4a6b', shoes: '#5a3a1e', build: 'muscle', height: 0.98 },
+    stats: { strength: 64, agility: 48, intellect: 56, reputation: 60, aim: 20 },
+    cash: 160, home: 'home_marisol', boss: 'daylabor',
+    sched: [['06:45', '12:00', 'hang', 'st_canal_main', 'site'], ['12:00', '12:45', 'hang', 'st_main', 'taco'], ['12:45', '16:00', 'hang', 'st_canal_main', 'site'], ['16:00', '06:45', 'sleep', 'home_marisol']],
+    favors: [],
+  },
+  {
+    id: 'ray', name: 'Raymond Fontenot', short: 'Old Ray', personality: 'tired', role: 'Retired, fishes the bayou',
+    look: { skin: '#6b4229', hair: 'short', hairColor: '#e0ddd5', beard: 'full', hat: 'cap', hatColor: '#3d6b3d', top: 'button', topColor: '#7a8c6e', bottom: 'slacks', bottomColor: '#5a4a3a', shoes: '#3a2a1e', build: 'slim', height: 0.96 },
+    stats: { strength: 24, agility: 20, intellect: 60, reputation: 64, aim: 40 },
+    cash: 60, home: 'home_ray',
+    sched: [['07:30', '11:30', 'hang', 'st_canal_harbor', 'fishing'], ['11:30', '12:30', 'eat', 'diner'], ['12:30', '16:30', 'sit', 'st_pecan', 'park'], ['16:30', '07:30', 'rest', 'home_ray']],
+    favors: [],
+  },
+  {
+    id: 'keisha', name: 'Keisha Brown', short: 'Keisha', personality: 'steady', role: 'Nursing student, runner',
+    look: { skin: '#5a3825', hair: 'braids', hairColor: '#120c0a', top: 'tank', topColor: '#ff5d8f', bottom: 'shorts', bottomColor: '#1d1d22', shoes: '#f0f0f0', build: 'slim', height: 0.99 },
+    stats: { strength: 40, agility: 70, intellect: 62, reputation: 50, aim: 10 },
+    cash: 40, home: 'home_keisha',
+    sched: [['06:00', '07:30', 'patrol', null, 'jog'], ['07:30', '08:30', 'eat', 'diner'], ['08:30', '16:30', 'rest', 'home_keisha'], ['16:30', '18:30', 'workout', 'gym'], ['18:30', '19:30', 'hang', 'st_canal_harbor', 'court'], ['19:30', '06:00', 'sleep', 'home_keisha']],
+    favors: [],
+  },
+);
+
 // Beat routes: [room, x, y, pause seconds].
 export const ROUTES = {
+  jog: [
+    ['st_pecan', 830, 570, 0.2], ['st_main', 300, 570, 0.2], ['st_main', 830, 830, 0.2], ['st_canal_main', 830, 300, 0.2],
+    ['st_canal_main', 570, 830, 0.2], ['st_canal_w', 830, 570, 0.2], ['st_canal_w', 570, 300, 0.2], ['st_pecan', 570, 1100, 0.2],
+  ],
   beat: [
     ['st_pecan', 830, 570, 6], ['st_pecan', 570, 840, 8], ['st_pecan', 300, 1150, 6], ['st_pecan', 1110, 960, 6],
     ['st_pecan', 1100, 570, 5],
@@ -186,6 +250,8 @@ export const HANGOUTS = {
     steps: [480, 520, 40],
     lot: [300, 1100, 80],
   },
+  st_canal_main: { site: [1080, 300, 60] },
+  st_canal_harbor: { fishing: [180, 1080, 30], court: [1130, 1080, 110] },
 };
 
 // Starting relationships between NPCs (both directions unless noted).
@@ -206,4 +272,12 @@ export const NPC_LINKS = [
   ['reggie', 'dre', 40],
   ['reggie', 'javi', -10],
   ['boudreaux', 'javi', -15],
+  ['earl', 'lou', 25],
+  ['earl', 'ray', 30],
+  ['lou', 'marisol', -10],
+  ['hank', 'javi', 15],
+  ['lupe', 'carmen', 20],
+  ['ray', 'delphine', 35],
+  ['keisha', 'patrice', 40],
+  ['keisha', 'dre', 15],
 ];

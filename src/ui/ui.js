@@ -14,6 +14,9 @@ import { odds } from '../sim/talk.js';
 import { GOALS, goalText, progress } from '../sim/board.js';
 import { drawItem } from '../view/sprites.js';
 import { drawPortrait, drawPerson } from '../view/people.js';
+import { drawCar } from '../view/sprites.js';
+import { MODELS, CAR_COLORS, STALL_RENT } from '../data/cars.js';
+import { LICENSES } from '../data/licenses.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -239,6 +242,7 @@ export class UI {
       }
       H.classList.toggle('show', !!hit);
     }
+    this.driveHud(sim);
     // task progress
     const task = scratch(p).task;
     const tb = $('taskbar');
@@ -379,6 +383,9 @@ export class UI {
       key = JSON.stringify(m) + '|' + cashOnBody(sim, p) + '|' + (p.hands || '') + '|' + p.bank + '|' + (p.fines || 0) + '|' + (p.bills || 0) + '|' + JSON.stringify(sim.s.leases || {});
       if (m.type === 'cont') key += '|' + this.invSig(sim, [m.cont, p.pockets]);
       if (m.type === 'posting') key += '|' + JSON.stringify(sim.s.job.jobs[m.job] || {});
+      if (m.type === 'garage' || m.type === 'fuel') key += '|' + JSON.stringify(Object.values(sim.s.cars).map((c) => [c.stored, Math.round(c.fuel), c.dmg.front + c.dmg.rear + c.dmg.left + c.dmg.right, Math.round(c.x / 50)]));
+      if (m.type === 'dealer') key += '|' + this.dealerColor;
+      if (m.type === 'license') key += '|' + JSON.stringify(sim.player.licenses);
     }
     if (key === this.keys.modal) return;
     this.keys.modal = key;
@@ -452,7 +459,79 @@ export class UI {
       if ((p.fines || 0) > 0) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('pay_fines') }, `Pay fines (${money(Math.min(p.fines, cashOnBody(sim, p)))})`));
       card.append(el('p', { class: 'sub' }, 'Permits and license tests are at the window on the right.'));
     } else if (m.type === 'license') {
-      card.append(el('h2', {}, 'Permits & tests'), el('p', {}, 'Driver and firearm permits are processed here. The test schedule is posted soon — check back.'));
+      card.append(el('h2', {}, 'Permits & tests'), el('p', { class: 'sub' }, 'Pay the fee, answer the questions. Fail and you can retake it tomorrow.'));
+      for (const id of Object.keys(LICENSES)) {
+        const L = LICENSES[id];
+        const st = sim.licenses.status(id);
+        const row = el('div', { class: 'licrow' }, el('div', {}, el('b', {}, L.name), el('small', {}, L.blurb), el('small', { class: st.ok ? '' : st.have ? 'good' : 'bad' }, st.have ? '✓ Issued' : st.text)));
+        if (st.ok) row.append(el('button', { class: 'hot', onclick: () => sim.cmd('test_start', { id }) }, `Take test · $${L.fee}`));
+        card.append(row);
+      }
+      if (sim.player.stats.intellect >= 40) card.append(el('p', { class: 'sub' }, 'Your reading helps: some wrong answers will stand out.'));
+    } else if (m.type === 'test') {
+      const L = LICENSES[m.id];
+      card.append(el('h2', {}, L.name + ' test'));
+      if (!m.done) {
+        const q = m.items[m.i];
+        card.append(el('p', { class: 'sub' }, `Question ${m.i + 1} of ${m.items.length}`), el('p', { class: 'question' }, q.q));
+        q.answers.forEach((a, k) => card.append(el('button', { class: `hot wide answer${a.grey ? ' grey' : ''}`, disabled: a.grey ? 'disabled' : null, onclick: () => sim.cmd('test_answer', { choice: a.i }) }, el('kbd', {}, String(k + 1)), a.text)));
+      } else {
+        card.append(el('p', { class: m.passed ? 'good big' : 'bad big' }, m.passed ? `Passed — ${m.right}/${m.items.length}.` : `Failed — ${m.right}/${m.items.length}. Need ${L.need}.`));
+        card.append(el('p', { class: 'sub' }, m.passed ? 'The clerk slides the card under the glass.' : 'Study up and come back tomorrow.'));
+        card.append(el('button', { class: 'hot wide', onclick: () => sim.cmd('modal_close') }, 'Done'));
+      }
+    } else if (m.type === 'fuel') {
+      const car = sim.s.cars[m.car];
+      const M = MODELS[car.model];
+      const cost = Math.ceil((M.tank - car.fuel) * 0.06);
+      card.append(el('h2', {}, 'Gas & Go · Pump'), el('div', { class: 'fuelbar' }, el('s', { style: `width:${(car.fuel / M.tank) * 100}%` })));
+      card.append(el('p', { class: 'sub' }, `${Math.round((car.fuel / M.tank) * 100)}% full. Regular is $3.29 a gallon.`));
+      card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('refuel', { car: car.id }) }, cost > 0 ? `Fill up · $${cost}` : 'Tank is full'));
+    } else if (m.type === 'garage') {
+      const npc = m.npc ? sim.s.actors[m.npc] : null;
+      card.append(el('h2', {}, 'Lone Star Auto'), el('p', { class: 'sub' }, npc ? `${npc.short} wipes his hands on a rag.` : 'Stall 3 — your space, if you rent it.'));
+      const apron = sim.apronCar();
+      if (npc) {
+        if (apron) {
+          const cost = sim.cars.repairCost(apron);
+          card.append(this.carThumb(apron), el('button', { class: 'hot wide', onclick: () => sim.cmd('repair', { car: apron.id }) }, cost > 0 ? `Fix the dents · $${cost}` : 'Nothing to fix on it'));
+        } else card.append(el('p', { class: 'sub' }, 'Park your car on the apron out front for repairs.'));
+      }
+      const L = sim.s.leases.stall;
+      const stored = Object.values(sim.s.cars).find((c) => c.stored === 'stall');
+      card.append(el('h3', {}, 'Stall 3'));
+      if (!L) card.append(el('p', { class: 'sub' }, `Keep one car safe indoors. $${STALL_RENT} a week.`), el('button', { class: 'hot wide', onclick: () => sim.cmd('stall_lease') }, `Rent Stall 3 · $${STALL_RENT}/week`));
+      else {
+        card.append(el('div', { class: 'kv' }, el('span', {}, 'Paid through'), el('b', { class: L.overdue ? 'bad' : 'good' }, `${weekday(L.due)} ${clock12(L.due)}${L.overdue ? ' — OVERDUE' : ''}`), el('span', {}, 'In the stall'), el('b', {}, stored ? MODELS[stored.model].name : 'empty')));
+        card.append(el('button', { class: 'hot wide', onclick: () => sim.cmd('pay_rent', { lease: 'stall' }) }, `Pay stall rent · $${L.rent}`));
+        if (stored) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('stall_take') }, 'Roll my car out'));
+        else if (apron) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('stall_store', { car: apron.id }) }, `Store the ${MODELS[apron.model].name}`));
+        else card.append(el('p', { class: 'sub' }, 'Park on the apron out front to store your car.'));
+      }
+    } else if (m.type === 'dealer') {
+      const npc = sim.s.actors[m.npc];
+      card.classList.add('wide');
+      card.append(el('h2', {}, 'Big Tex Motors'), el('p', { class: 'sub' }, `${npc.short} leans back. "Everybody rides. Bank or cash, I don't judge."`));
+      if (!this.dealerColor) this.dealerColor = CAR_COLORS[0];
+      const sw = el('div', { class: 'pick' }, el('span', {}, 'Color'));
+      for (const col of CAR_COLORS) sw.append(el('button', { class: `sw${this.dealerColor === col ? ' on' : ''}`, style: `background:${col}`, onclick: () => { this.dealerColor = col; this.keys.modal = ''; } }));
+      card.append(sw);
+      const grid = el('div', { class: 'cars' });
+      for (const id of ['sedan', 'pickup', 'coupe']) {
+        const M = MODELS[id];
+        const cv = document.createElement('canvas');
+        cv.width = 240;
+        cv.height = 120;
+        cv.style.width = '120px';
+        cv.style.height = '60px';
+        const c = cv.getContext('2d');
+        c.scale(2, 2);
+        c.translate(60, 30);
+        drawCar(c, 0, this.dealerColor, null, false, false, { len: M.len, wid: M.wid, pickup: M.bed });
+        grid.append(el('div', { class: 'carcard' }, cv, el('b', {}, M.name), el('small', {}, `Top ${Math.round((M.top / 40) * 2.237)} mph · ${M.grip > 8 ? 'sharp' : M.grip > 7.2 ? 'steady' : 'loose'} handling`),
+          el('button', { class: 'hot primary', onclick: () => sim.cmd('buy_car', { model: id, color: this.dealerColor }) }, `Buy · $${M.price.toLocaleString()}`)));
+      }
+      card.append(grid, el('p', { class: 'foot' }, `Bank ${money(sim.player.bank)} + cash ${money(cashOnBody(sim, sim.player))}. You'll need a driver license to drive it off.`));
     } else if (m.type === 'terminal') {
       card.append(el('h2', {}, 'Market terminal'), el('p', {}, 'A screen of numbers climbing and falling. You have nothing to sell here yet.'));
     } else if (m.type === 'trade') {
@@ -504,6 +583,45 @@ export class UI {
     }
     box.append(card);
     box.classList.remove('hidden');
+  }
+
+  carThumb(car) {
+    const M = MODELS[car.model];
+    const cv = document.createElement('canvas');
+    cv.width = 240;
+    cv.height = 120;
+    cv.style.width = '120px';
+    cv.style.height = '60px';
+    const c = cv.getContext('2d');
+    c.scale(2, 2);
+    c.translate(60, 30);
+    drawCar(c, 0, car.color, car.dmg, false, false, { len: M.len, wid: M.wid, pickup: M.bed });
+    return el('div', { class: 'carthumb' }, cv, el('small', {}, `${M.name} · ${car.plate}`));
+  }
+
+  driveHud(sim) {
+    const p = sim.player;
+    const box = $('drivehud');
+    const car = p.car && sim.s.cars[p.car];
+    if (!car) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    const M = MODELS[car.model];
+    const mph = Math.round((sim.cars.speed(car) / 40) * 2.237);
+    const fuel = car.fuel / M.tank;
+    const d = car.dmg;
+    const col = (v) => (v > 0.66 ? '#ff6b5e' : v > 0.33 ? '#ffb36b' : '#7be495');
+    const html = `<div class="mph"><b>${mph}</b><small>MPH</small></div>
+      <div class="dmeta"><div class="fuel"><i>⛽</i><b><s style="width:${fuel * 100}%;background:${fuel < 0.15 ? '#ff6b5e' : '#ffd23f'}"></s></b></div>
+      <div class="panels"><span style="background:${col(d.front)}">F</span><span style="background:${col(d.left)}">L</span><span style="background:${col(d.right)}">R</span><span style="background:${col(d.rear)}">B</span>
+      <em>${car.radio ? '♫ 97.3' : 'radio off'}</em></div>
+      <small>${p.licenses.driver ? (document.body.classList.contains('touch') ? 'stick: drive · E exit · R radio' : 'W/S gas & brake · A/D steer · Space handbrake · E exit · R radio') : 'No license — it won’t start'}</small></div>`;
+    if (this.hudCache.drive !== html) {
+      this.hudCache.drive = html;
+      box.innerHTML = html;
+    }
   }
 
   // ------------------------------------------------------------ inventory grids

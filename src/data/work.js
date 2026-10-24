@@ -88,6 +88,56 @@ export const JOBS = {
   },
 };
 
+Object.assign(JOBS, {
+  warehouse: {
+    id: 'warehouse', place: 'warehouse', title: 'Warehouse boxes', boss: 'lou', floor: { strength: 30 },
+    ranks: [
+      { title: 'Loader', pay: 48, tasks: 7 },
+      { title: 'Lead loader', pay: 70, tasks: 8, floor: { strength: 50 }, hours: 24 },
+    ],
+    hours: 4, clockIn: ['06:00', '15:00'], closeBy: '19:00',
+    tasks: [
+      { w: 4, kind: 'carry', from: 'dock', to: { tag: 'rack' }, item: 'box', pick: 'Grab a box off the loading dock', drop: 'Shelve it on {to}' },
+      { w: 1, kind: 'hold', at: ['wrap'], dur: 3, label: 'Shrink-wrap the outbound pallet' },
+      { w: 1, kind: 'spot', dur: 2.6, label: 'Sweep the aisle', mark: 'litter' },
+    ],
+    posting: 'LOADERS WANTED. Lift 50 lbs all day. $48 a shift, cash. See Lou. No whining.',
+  },
+  daylabor: {
+    id: 'daylabor', place: 'st_canal_main', title: 'Job site day labor', boss: 'marisol', floor: { strength: 35 },
+    area: [1130, 270, 220],
+    ranks: [
+      { title: 'Laborer', pay: 52, tasks: 7 },
+      { title: 'Framer', pay: 76, tasks: 8, floor: { strength: 55, intellect: 35 }, hours: 24 },
+    ],
+    hours: 4, clockIn: ['07:00', '12:00'], closeBy: '16:00',
+    tasks: [
+      { w: 3, kind: 'carry', from: 'lumber1', to: ['frame'], item: 'lumber', pick: 'Grab lumber from the pile', drop: 'Haul it to the frame' },
+      { w: 2, kind: 'hold', at: ['frame'], dur: 3, label: 'Nail up studs on the frame' },
+      { w: 1, kind: 'carry', from: 'blocks', to: ['frame'], item: 'cinder', pick: 'Pick up cinder blocks', drop: 'Stack them by the frame' },
+      { w: 1, kind: 'spot', dur: 2.4, label: 'Clear debris', mark: 'litter' },
+    ],
+    posting: 'Day labor, Canal St site. Hard hats provided. Strength 35. $52 a day. Ask for Marisol.',
+  },
+  taxi: {
+    id: 'taxi', place: 'depot', title: 'Cab driver', boss: 'lupe', floor: { intellect: 30 }, license: 'driver', roam: true, vehicle: 'cab',
+    ranks: [
+      { title: 'Driver', pay: 50, tasks: 4 },
+      { title: 'Senior driver', pay: 78, tasks: 5, floor: { intellect: 45, reputation: 40 }, hours: 24 },
+    ],
+    hours: 4, clockIn: ['06:00', '20:00'], closeBy: '23:30',
+    tasks: [{ w: 1, kind: 'fare' }],
+    stops: [
+      ['st_pecan', 1120, 590, 'the Starlite Diner'], ['st_pecan', 300, 590, 'Bayou Arms'], ['st_pecan', 400, 860, 'the bus stop on Pecan'],
+      ['st_main', 260, 590, 'the Quik Stop'], ['st_main', 1070, 590, 'Gulf Coast Savings'],
+      ['st_harbor', 1100, 590, "St. Ann's ER"], ['st_harbor', 260, 590, 'the 5th Precinct'],
+      ['st_canal_w', 340, 590, 'Lone Star Auto'], ['st_canal_w', 980, 590, 'the warehouse'],
+      ['st_canal_main', 300, 860, 'the Gas & Go'], ['st_canal_harbor', 300, 860, 'the bayou trail'], ['st_canal_harbor', 1100, 860, 'the courts'],
+    ],
+    posting: 'Drivers wanted. Valid driver license required. Clean record preferred. $50 a shift plus tips.',
+  },
+});
+
 // Favor templates. {due} is replaced with the deadline time.
 // kinds: deliver (bring them an item), fetch (find their lost item), quiet
 // (no noise after midnight), courier (carry their item to someone else).

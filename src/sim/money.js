@@ -5,7 +5,8 @@ import { DAY, dayOf, tod, hm, clock12, weekday } from './util.js';
 import { cashOnBody, spendCash, addCash } from './items.js';
 
 export const WEEKLY_DEPOSIT_CAP = 1000;
-export const RENT = { apt_2b: 175 };
+export const RENT = { apt_2b: 175, stall: 40 };
+const LEASE_NAMES = { apt_2b: 'Bayou Arms 2B', stall: 'Stall 3 at Lone Star Auto' };
 
 const weekOf = (t) => Math.floor((dayOf(t) - 1) / 7);
 // End of Sunday of the week containing t.
@@ -72,8 +73,22 @@ export class Money {
   lease(id) {
     const s = this.sim.s;
     if (!s.leases) s.leases = {};
-    if (!s.leases[id] && RENT[id] !== undefined) s.leases[id] = { rent: RENT[id], due: weekEnd(s.t), overdue: false, warned: -1 };
+    // your apartment comes leased; everything else you sign up for
+    if (!s.leases[id] && id === 'apt_2b') s.leases[id] = { rent: RENT[id], due: weekEnd(s.t), overdue: false, warned: -1 };
     return s.leases[id];
+  }
+
+  startLease(id) {
+    const sim = this.sim;
+    const s = sim.s;
+    if (s.leases[id]) return { ok: false, text: 'You already lease it.' };
+    const rent = RENT[id];
+    if (!spendCash(sim, this.p, rent)) return { ok: false, text: `First week is $${rent}, cash.` };
+    s.leases[id] = { rent, due: weekEnd(s.t), overdue: false, warned: -1 };
+    sim.sfx('cash');
+    sim.log(`Leased ${LEASE_NAMES[id] || id}: $${rent} a week, paid through Sunday.`, 'good');
+    sim.wantSave = true;
+    return { ok: true, text: `Leased. $${rent} a week.` };
   }
 
   leaseOk(id) {
@@ -90,7 +105,7 @@ export class Money {
     L.due += DAY * 7;
     const wasOver = L.overdue;
     L.overdue = sim.s.t > L.due;
-    const boss = sim.s.actors.boudreaux;
+    const boss = id === 'apt_2b' ? sim.s.actors.boudreaux : sim.s.actors.earl;
     if (boss) {
       boss.cash += L.rent;
       if (boss.rel.p) boss.rel.p.v = Math.min(100, boss.rel.p.v + (wasOver ? 1 : 3));
@@ -159,20 +174,22 @@ export class Money {
   update() {
     const sim = this.sim;
     const s = sim.s;
-    for (const id in RENT) {
-      const L = this.lease(id);
+    this.lease('apt_2b');
+    for (const id in s.leases) {
+      const L = s.leases[id];
+      const name = LEASE_NAMES[id] || id;
       if (!L.overdue && s.t > L.due) {
         L.overdue = true;
-        sim.log(`Rent on ${sim.world.room(id).name} is overdue. The door won't open until you pay ($${L.rent}).`, 'bad');
-        sim.toast('Rent overdue — you\'re locked out until you pay.', 'bad');
-        const b = s.actors.boudreaux;
+        sim.log(`Rent on ${name} is overdue ($${L.rent}). ${id === 'apt_2b' ? "The door won't open until you pay." : "It's locked until you pay."}`, 'bad');
+        sim.toast(`Rent overdue — ${name}.`, 'bad');
+        const b = id === 'apt_2b' ? s.actors.boudreaux : s.actors.earl;
         if (b && b.rel.p) b.rel.p.v = Math.max(-100, b.rel.p.v - 6);
       }
       // a heads-up the morning before
       const d = dayOf(s.t);
       if (!L.overdue && L.due - s.t < DAY * 1.6 && L.warned !== d && tod(s.t) > hm('08:00')) {
         L.warned = d;
-        sim.toast(`Rent ($${L.rent}) is due ${weekday(L.due)} night. Drop box in the Bayou Arms hallway.`, 'warn');
+        sim.toast(`Rent on ${name} ($${L.rent}) is due ${weekday(L.due)} night.`, 'warn');
       }
     }
     // unpaid fines keep you on police radar

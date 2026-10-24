@@ -36,6 +36,8 @@ export const ITEMS = {
   envelope: { name: 'Bank envelope', kind: 'job', w: 1, h: 1, wt: 0.2, value: 0, desc: 'Sealed. Signed for. Don\'t lose it.' },
   box: { name: 'Box of stock', kind: 'job', w: 2, h: 2, wt: 4, handsOnly: true, value: 0, desc: 'Cases of soda and chips.' },
   linen: { name: 'Clean linens', kind: 'job', w: 2, h: 1, wt: 1.5, handsOnly: true, value: 0, desc: 'Folded sheets, still warm.' },
+  lumber: { name: 'Lumber', kind: 'job', w: 1, h: 3, wt: 6, handsOnly: true, value: 0, desc: 'Two-by-fours, splintery.' },
+  cinder: { name: 'Cinder blocks', kind: 'job', w: 2, h: 2, wt: 9, handsOnly: true, value: 0, desc: 'Heavy. Lift with your legs.' },
   plates: { name: 'Weight plate', kind: 'job', w: 1, h: 1, wt: 5, handsOnly: true, value: 0, desc: 'A 20-pound plate somebody left on the floor.' },
 };
 

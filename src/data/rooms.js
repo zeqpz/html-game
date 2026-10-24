@@ -9,6 +9,8 @@
 // Street cells are 1400 x 1400 with a four-way intersection in the middle.
 // Lots are 540 x 540 and use lot-relative coordinates.
 
+import { ROOMS2 } from './rooms2.js';
+
 export const CELL = 1400;
 
 export const ROOMS = {
@@ -474,6 +476,8 @@ export const ROOMS = {
     itemSpawns: [[300, 1100], [460, 1300], [1100, 1000], [1300, 1250], [620, 300], [200, 40]],
   },
 };
+
+Object.assign(ROOMS, ROOMS2);
 
 // Items placed loose when a new game starts (slice: three on the floor + cash).
 export const START_LOOSE = [

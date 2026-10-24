@@ -18,6 +18,17 @@ export const SHOPS = {
     items: [['bandage', 6], ['medkit', 30]],
     services: [{ id: 'treat', label: 'Get patched up', desc: 'A nurse cleans you up and you rest a while. Back to full health.', price: 40 }],
   },
+  club: {
+    name: 'Velvet Room bar', place: 'club',
+    items: [['limesoda', 4], ['energy', 4], ['soda', 3], ['water', 2]],
+  },
+  gunshop: {
+    name: 'Ranger Arms', place: 'gunshop',
+    items: [['pistol', 420], ['ammo', 1]],
+    permit: { pistol: 'firearm' },
+    ammoPack: 24,
+    services: [{ id: 'range', label: 'Range time (30 min)', desc: 'A lane, a target and some rounds. Bring your own pistol.', price: 15 }],
+  },
   vending: {
     name: 'Vending machine', place: 'hospital', self: true,
     items: [['water', 2], ['soda', 2], ['snack', 2]],

@@ -201,6 +201,37 @@ export const FAVORS = {
     reward: { cash: 15, rel: 12 }, fail: { rel: -8 },
     thanks: 'There it is. Respect. Here.',
   },
+  // under the table: crew favors pay cash and add heat
+  snake_package: {
+    giver: 'snake', kind: 'courier', item: 'package', to: 'javi', minRel: 20, dueHours: 5, cooldown: 1, crew: 'cottonmouths', heat: 10,
+    ask: 'Got a package for Javi. Walk it over before {due}. Don\'t open it, don\'t get stopped.',
+    short: 'Walk Snake\'s package to Javi',
+    reward: { cash: 60, rel: 10 }, fail: { rel: -20 },
+    thanks: 'Yeah, yeah. Tell Snake we\'re good.',
+  },
+  snake_watch: {
+    giver: 'snake', kind: 'watch', minRel: 25, cooldown: 2, crew: 'cottonmouths', heat: 6,
+    ask: 'Need eyes on the courts tonight, ten to eleven. Just be there. Holler if you see Kings.',
+    short: 'Keep watch at the courts 10–11 PM',
+    window: ['22:00', '23:00'], need: 40, area: ['st_canal_harbor', 1130, 1080, 180],
+    reward: { cash: 35, rel: 10 }, fail: { rel: -12 },
+    thanks: 'Quiet night. Good. Here.',
+  },
+  king_collect: {
+    giver: 'king', kind: 'collect', from: 'javi', amount: 40, minRel: 20, dueHours: 6, cooldown: 2, crew: 'canalkings', heat: 8,
+    ask: 'Javi owes me forty. Go get it — however you have to — and bring it back before {due}.',
+    short: 'Collect $40 from Javi for King',
+    reward: { cash: 30, rel: 12 }, fail: { rel: -18 },
+    thanks: 'Every dollar. That\'s why I like you.',
+  },
+  dash_watch: {
+    giver: 'dash', kind: 'watch', minRel: 15, cooldown: 2, crew: 'canalkings', heat: 5,
+    ask: 'Stand watch at the lot on Main with me, nine to ten tonight. Cottonmouths been sniffing around.',
+    short: 'Keep watch at the Main St lot 9–10 PM',
+    window: ['21:00', '22:00'], need: 40, area: ['st_main', 1150, 1150, 160],
+    reward: { cash: 25, rel: 10 }, fail: { rel: -10 },
+    thanks: 'Respect. You held it down.',
+  },
   boudreaux_quiet: {
     giver: 'boudreaux', kind: 'quiet', minRel: 5, cooldown: 4,
     ask: 'Tenants been complaining about noise. Keep it down after midnight tonight and we\'re square.',

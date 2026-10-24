@@ -321,7 +321,7 @@ export function spawnInRoom(sim, roomId, count) {
   if (!r || r.kind === 'offmap') return;
   const def = r.def;
   const table = SPAWN_TABLES[def.spawn];
-  if (!table || !def.itemSpawns) return;
+  if (!table || !def.itemSpawns || !def.itemSpawns.length) return;
   const rs = sim.roomState(roomId);
   const cap = r.kind === 'street' ? 8 : 4;
   for (let i = 0; i < count; i++) {

@@ -249,7 +249,7 @@ export class AI {
       return;
     }
     // hostile
-    if (!npc.police && sim.rng.chance(P.temper)) {
+    if (!npc.police && sim.rng.chance(P.temper + sim.crews.temperMod(npc))) {
       sim.fight.squareUp(npc, p, false);
       return;
     }
@@ -270,8 +270,9 @@ export class AI {
       const ov = scratch(o);
       if (ov.chatAt && sim.time - ov.chatAt < 25) continue;
       const v = relV(npc, o.id);
-      // rivals might start something
-      if (v <= -40 && (npc.personality === 'volatile' || npc.personality === 'proud') && sim.rng.chance(P.temper * 0.25) && !sim.policeIn(npc.room)) {
+      // rival crews and rivals might start something
+      const crewHeat = npc.crew && o.crew && npc.crew !== o.crew ? sim.crews.hostility(npc.crew, o.crew) / 100 : 0;
+      if ((v <= -40 && (npc.personality === 'volatile' || npc.personality === 'proud') && sim.rng.chance(P.temper * 0.25) || sim.rng.chance(crewHeat * P.temper * 0.3)) && !sim.policeIn(npc.room)) {
         sim.fight.squareUp(npc, o, true);
         sim.fight.begin(npc, o);
         return;
@@ -436,6 +437,8 @@ export class AI {
           npc.act = 'idle';
         }
       }
+      // dance floors get used
+      if (!npc.spot && npc.room === 'club' && (g.act === 'hang' || g.act === 'sit') && Math.abs(npc.x - 450) < 150 && Math.abs(npc.y - 390) < 90) npc.act = 'dance';
       moveBody(sim, npc, 0, 0, speed, dt);
       return;
     }

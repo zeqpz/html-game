@@ -14,6 +14,8 @@ export const GOALS = {
   friends: { label: 'Make {n} friends', targets: [1, 2, 4], value: (sim) => Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && displayTag(a, 'p') === 'friend').length },
   rep: { label: 'Reputation {n}', targets: [40, 55, 70, 85], value: (sim) => sim.player.stats.reputation },
   clean: { label: 'A clean week (7 days, no fights, heat 0)', targets: [7], value: (sim) => cleanDays(sim) },
+  second: { label: 'Lease a second place ({n})', targets: [1, 2], value: (sim) => Object.keys(sim.s.leases || {}).filter((k) => k === 'loft' || k === 'unit').length },
+  crew: { label: 'Join a crew', targets: [1], value: (sim) => (sim.player.crew ? 1 : 0) },
 };
 
 function cleanDays(sim) {

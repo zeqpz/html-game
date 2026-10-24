@@ -3,6 +3,7 @@
 
 import { ROOMS, CELL } from '../data/rooms.js';
 import { HANGOUTS, NPCS } from '../data/npcs.js';
+import { FURNITURE } from '../data/rooms3.js';
 import { rectHit, pushOut, clamp } from './util.js';
 
 export const ACTOR_R = 9;
@@ -401,5 +402,34 @@ export class World {
 
   prop(roomId, propId) {
     return this.rooms[roomId]?.props.find((p) => p.id === propId) || null;
+  }
+
+  // Rebuild a room's props/solids/lights from its data plus placed furniture.
+  applyFurniture(roomId, list) {
+    const r = this.rooms[roomId];
+    if (!r || r.kind !== 'interior') return;
+    if (!r.baseProps) {
+      r.baseProps = r.props.slice();
+      r.baseSolids = r.solids.slice();
+      r.baseLights = r.lights.slice();
+    }
+    r.props = r.baseProps.slice();
+    r.solids = r.baseSolids.slice();
+    r.lights = r.baseLights.slice();
+    for (const f of list || []) {
+      if (!f.placed) continue;
+      const F = FURNITURE[f.type];
+      const type = { shelf: 'shelfunit', miner: 'minerrig' }[f.type] || f.type;
+      const prop = {
+        id: `f_${f.uid}`, type, room: roomId, x: f.x, y: f.y, w: F.w, h: F.h, use: F.use, label: F.name, furn: f.uid,
+        cont: F.cont ? `f_${f.uid}` : undefined,
+        spots: F.spots ? F.spots.map((s) => ({ x: f.x + s.dx, y: f.y + s.dy, pose: s.pose, face: s.face, ax: f.x + s.adx, ay: f.y + s.ady })) : undefined,
+      };
+      r.props.push(prop);
+      r.solids.push({ x: f.x, y: f.y, w: F.w, h: F.h, furn: f.uid });
+      if (F.light) r.lights.push({ x: f.x + F.w / 2, y: f.y - 30, r: 170, color: F.light });
+    }
+    delete this.navCache[roomId];
+    r.furnVer = (r.furnVer || 0) + 1;
   }
 }

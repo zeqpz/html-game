@@ -5,8 +5,8 @@ import { DAY, dayOf, tod, hm, clock12, weekday } from './util.js';
 import { cashOnBody, spendCash, addCash } from './items.js';
 
 export const WEEKLY_DEPOSIT_CAP = 1000;
-export const RENT = { apt_2b: 175, stall: 40 };
-const LEASE_NAMES = { apt_2b: 'Bayou Arms 2B', stall: 'Stall 3 at Lone Star Auto' };
+export const RENT = { apt_2b: 175, stall: 40, unit: 60, loft: 260 };
+export const LEASE_NAMES = { apt_2b: 'Bayou Arms 2B', stall: 'Stall 3 at Lone Star Auto', unit: 'U-Stor Unit 14', loft: 'Harbor Lofts 3C' };
 
 const weekOf = (t) => Math.floor((dayOf(t) - 1) / 7);
 // End of Sunday of the week containing t.

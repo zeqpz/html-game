@@ -30,6 +30,8 @@ export class Fights {
     const sim = this.sim;
     const _ = scratch(a);
     if (!this.canAct(a)) return false;
+    const held = a.hands && sim.s.items[a.hands];
+    if (held && held.def === 'pistol') return this.shoot(a, held);
     if (a.stats.stamina < 8) {
       if (a.kind === 'player') sim.toast('Too winded to swing.', 'warn');
       return false;
@@ -39,6 +41,84 @@ export class Fights {
     _.strikeAnim = 0.34;
     a.stats.stamina = Math.max(0, a.stats.stamina - 11);
     sim.sfx('swing', a);
+    return true;
+  }
+
+  // Firearms: rare, licensed, loud. Hit chance comes from aim and distance.
+  shoot(a, gun) {
+    const sim = this.sim;
+    const _ = scratch(a);
+    if (a.spot) sim.leaveSpot(a);
+    if ((gun.ammo || 0) <= 0) {
+      // reload from an ammo box if you have one
+      const box = [...sim.items.contItems(sim, a.pockets || '')].find((it) => it.def === 'ammo');
+      if (box) {
+        const n = Math.min(12, box.n);
+        box.n -= n;
+        if (box.n <= 0) sim.items.destroy(sim, box);
+        gun.ammo = n;
+        _.cd = 1.2;
+        sim.toast(`Reloaded (${n}).`, '');
+        sim.sfx('click', a);
+      } else {
+        sim.toast('Click. Empty.', 'warn');
+        sim.sfx('click', a);
+        _.cd = 0.4;
+      }
+      return false;
+    }
+    gun.ammo--;
+    _.cd = 0.45;
+    _.strikeAnim = 0.2;
+    const [fx, fy] = FACE_VEC[a.face];
+    sim.emit('muzzle', { room: a.room, x: a.x + fx * 14, y: a.y - 26 + fy * 8, dir: a.face });
+    sim.sfx('shot', a);
+    // the closest person in a narrow cone ahead
+    let best = null;
+    let bd = 520;
+    for (const id in sim.s.actors) {
+      const b = sim.s.actors[id];
+      if (b === a || b.room !== a.room || !b.loaded || b.downUntil || b.act === 'drive') continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.hypot(dx, dy);
+      if (d > bd || d < 1) continue;
+      if ((dx * fx + dy * fy) / d < 0.9) continue;
+      bd = d;
+      best = b;
+    }
+    // everybody heard that
+    for (const w of witnesses(sim, a.room, a.x, a.y, [a.id])) {
+      if (w.police) continue;
+      remember(sim, w, { type: 'shot', who: a.id, x: best ? best.id : null });
+      adjustRel(sim, w, a.id, -20);
+      if (w !== best && !w.fightWith) this.flee(w, a);
+    }
+    if (a.kind === 'player') {
+      sim.addHeat(best ? 45 : 25, best ? 'firing at someone' : 'firing a gun in public');
+      sim.repChange(best ? -6 : -3, 'gunfire', a.room);
+      sim.police.onShots(a);
+    }
+    if (!best) return true;
+    const p = clamp(0.2 + a.stats.aim / 110 - bd / 1600 + (bd < 60 ? 0.15 : 0), 0.08, 0.95);
+    if (!sim.rng.chance(p)) {
+      sim.emit('float', { room: best.room, x: best.x, y: best.y - 50, text: 'miss', color: '#cfd8e3' });
+      return true;
+    }
+    const dmg = Math.round(gun.dmgOverride || ITEMS.pistol.dmg * sim.rng.range(0.8, 1.2));
+    best.stats.health = Math.max(0, best.stats.health - dmg);
+    const _b = scratch(best);
+    _b.hurtT = 0.35;
+    _b.kx = fx * 220;
+    _b.ky = fy * 220;
+    sim.emit('hit', { room: best.room, x: best.x, y: best.y - 30, dmg, by: a.id, on: best.id });
+    sim.emit('float', { room: best.room, x: best.x, y: best.y - 54, text: `-${dmg}`, color: '#ff6b5e' });
+    if (best.kind === 'npc') {
+      remember(sim, best, { type: 'shot', who: a.id });
+      adjustRel(sim, best, a.id, -70);
+      if (best.stats.health > 0) this.flee(best, a);
+    }
+    if (best.stats.health <= 0) this.knockDown(best, a);
     return true;
   }
 
@@ -151,6 +231,8 @@ export class Fights {
   begin(a, b) {
     const sim = this.sim;
     a.fightWith = b.id;
+    if (a.kind === 'npc' && b.kind === 'npc') sim.crews.onNpcFight(a, b);
+    if (a.kind === 'player' && b.kind === 'npc') sim.crews.onHostile(b, 10, 'a fight');
     const rec = { by: a.id, on: b.id, room: a.room, t: sim.s.t, at: sim.time };
     sim.s.lastFight = rec;
     if (b.kind === 'npc') {

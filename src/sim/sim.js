@@ -14,6 +14,12 @@ import { Money } from './money.js';
 import { Cars } from './cars.js';
 import { Licenses } from './licenses.js';
 import { MODELS } from '../data/cars.js';
+import { Crews } from './crews.js';
+import { Economy, coinPrice } from './economy.js';
+import { Furniture } from './furniture.js';
+import { CREWS } from '../data/crews.js';
+import { FURNITURE } from '../data/rooms3.js';
+import { LEASE_NAMES, RENT } from './money.js';
 import { makePlayer, makeNpc, scratch, playerNeeds, walkSpeed, sprintMul, moveBody, staminaTick, faceToward, FACE_VEC, schedNow } from './actors.js';
 import { relV, adjustRel, remember, setTag, displayTag, witnesses, meet } from './memory.js';
 import { clamp, hm, tod, dayOf, inWindow, DAY, clock12, rectDist, rectHit, hashStr, weekday } from './util.js';
@@ -42,6 +48,9 @@ export class Sim {
     this.money = new Money(this);
     this.cars = new Cars(this);
     this.licenses = new Licenses(this);
+    this.crews = new Crews(this);
+    this.economy = new Economy(this);
+    this.furniture = new Furniture(this);
     this.events = [];
     this.input = { mx: 0, my: 0, sprint: false };
     this.edges = {};
@@ -316,6 +325,7 @@ export class Sim {
       const js = this.s.job.jobs[Object.keys(JOBS).find((k) => JOBS[k].place === door.to)];
       if (!(js && js.hired)) return { ok: false, text: `${def.name} is closed. Opens at ${clock12(hm(def.hours[0]))}.` };
     }
+    if (door.lease && door.lease !== 'apt_2b' && !this.s.leases[door.lease]) return { ok: false, lease: door.lease, text: `${LEASE_NAMES[door.lease]} is for lease — $${RENT[door.lease]} a week.` };
     if (door.lease && !this.leaseOk(door.lease)) return { ok: false, text: `The lock won't turn. Rent is overdue — $${this.money.lease(door.lease).rent} in the drop box.` };
     return { ok: true };
   }
@@ -400,6 +410,8 @@ export class Sim {
       playerNeeds(this, this.player, chunk);
       this.work.update();
       this.money.update();
+      this.economy.update(chunk);
+      this.crews.update();
       updateBoard(this);
       this.clockEvents();
       this.lastDm = dm;
@@ -546,6 +558,27 @@ export class Sim {
         return;
       }
     }
+    // arranging furniture: the controls move the piece, not you
+    if (this.ui.arrange) {
+      const A = this.ui.arrange;
+      A.x += inp.mx * 260 * dt;
+      A.y += inp.my * 260 * dt;
+      const r = this.world.room(p.room);
+      A.x = clamp(A.x, r.bounds.x, r.bounds.x + r.bounds.w - A.w);
+      A.y = clamp(A.y, r.bounds.y, r.bounds.y + r.bounds.h - A.h);
+      A.ok = this.furniture.valid(p.room, A.uid, A.x, A.y);
+      if (e.interact) {
+        const res = this.furniture.place(p.room, A.uid, A.x, A.y);
+        this.toast(res.text, res.ok ? 'good' : 'warn');
+        if (res.ok) this.ui.arrange = null;
+      }
+      if (e.back) this.ui.arrange = null;
+      return;
+    }
+    if (p.act === 'dance') {
+      if (Math.hypot(inp.mx, inp.my) > 0.15 || frozen) p.act = 'idle';
+      else this.dance(p, dt);
+    }
     let mx = frozen ? 0 : inp.mx;
     let my = frozen ? 0 : inp.my;
     const moving = Math.hypot(mx, my) > 0.15;
@@ -575,7 +608,7 @@ export class Sim {
     staminaTick(p, dt, spending);
 
     // training on gym props
-    if (p.spot && ['lift', 'run', 'bag'].includes(p.act)) this.train(p, dt);
+    if (p.spot && ['lift', 'run', 'bag', 'range'].includes(p.act)) this.train(p, dt);
     if (p.spot && p.act === 'sit') p.stats.mind = clamp(p.stats.mind + dt * 0.02, 0, 100);
 
     // doors and street edges
@@ -617,6 +650,11 @@ export class Sim {
     if (_.doorLock) return;
     const ok = this.canEnter(d);
     if (!ok.ok) {
+      if (ok.lease && !this.ui.modal && (!_.doorMsgAt || this.time - _.doorMsgAt > 3)) {
+        _.doorMsgAt = this.time;
+        this.ui.modal = { type: 'lease', lease: ok.lease };
+        return;
+      }
       if (!ok.quiet && (!_.doorMsgAt || this.time - _.doorMsgAt > 3)) {
         _.doorMsgAt = this.time;
         this.toast(ok.text, 'warn');
@@ -647,6 +685,28 @@ export class Sim {
       return g;
     };
     p.stats.thirst = clamp(p.stats.thirst - 1.2, 0, 100);
+    if (p.act === 'range') {
+      const h = p.hands && this.s.items[p.hands];
+      const rs = this.roomState(p.room);
+      const paid = rs.rangeUntil && rs.rangeUntil > this.s.t;
+      if (!h || h.def !== 'pistol') {
+        this.toast('You need a pistol in your hands.', 'warn');
+        this.leaveSpot(p);
+        return;
+      }
+      if (!paid && (h.ammo || 0) < 2) {
+        this.toast('Out of rounds. Buy range time or ammo at the counter.', 'warn');
+        this.leaveSpot(p);
+        return;
+      }
+      if (!paid) h.ammo -= 2;
+      p.stats.stamina += 10;
+      const g = gain('aim', 0.35);
+      this.emit('float', { room: p.room, x: p.x, y: p.y - 60, text: `+${g.toFixed(2)} AIM`, color: '#cfe3ff' });
+      this.emit('muzzle', { room: p.room, x: p.x, y: p.y - 30, dir: 'up' });
+      this.sfx('shot', p);
+      return;
+    }
     if (p.act === 'lift') {
       const g = gain('strength', 0.32);
       this.emit('float', { room: p.room, x: p.x, y: p.y - 60, text: `+${g.toFixed(2)} STR`, color: '#ffd23f' });
@@ -815,6 +875,18 @@ export class Sim {
     if (npc.landlord) acts.push({ id: 'rent', label: 'Pay rent' });
     if (npc.staffOf === 'bank' && this.onDuty(npc)) acts.push({ id: 'banking', label: 'Banking' });
     if (npc.staffOf === 'precinct' && this.onDuty(npc)) acts.push({ id: 'desk', label: 'Fines & paperwork' });
+    for (const cid in CREWS) {
+      if (CREWS[cid].leader !== npc.id) continue;
+      if (p.crew === cid) acts.push({ id: 'crewleave', label: `Leave the ${CREWS[cid].name}` });
+      else if (!p.crew) acts.push({ id: 'crewjoin', label: `Ask to join the ${CREWS[cid].name}` });
+    }
+    if (npc.buyer || npc.id === 'javi') {
+      const held = [...items.contItems(this, p.pockets), p.hands && this.s.items[p.hands]].filter(Boolean);
+      if (held.some((it) => it.def === 'bloom') && npc.buyer) acts.push({ id: 'sellbloom', label: 'Sell bayou bloom' });
+      if (held.some((it) => it.def === 'coin')) acts.push({ id: 'sellcoin', label: 'Sell BayouCoin' });
+    }
+    const col = this.s.favors.find((f) => f.status === 'active' && f.giver === npc.id && f.collected);
+    if (col) acts.push({ id: 'collectpay', label: `Hand over $${FAVORS[col.id].amount}` });
     const prop = this.propBehind(npc);
     if (prop) acts.push({ id: 'useprop', label: this.propLabel(prop), prop: prop.id });
     acts.push({ id: 'threaten', label: 'Threaten' });
@@ -1012,6 +1084,37 @@ export class Sim {
         this.ui.modal = { type: 'terminal' };
         break;
       }
+      case 'dance': {
+        if (p.hands && ITEMS[this.s.items[p.hands].def].handsOnly) return this.toast('Put that down first.', 'warn');
+        p.act = 'dance';
+        scratch(p).danceT = 0;
+        this.toast('Dancing. Move to stop.', '');
+        break;
+      }
+      case 'range': {
+        const i = (prop.spots || []).findIndex((sp, k) => !this.spotTaken(p.room, prop.id, k, 'p'));
+        if (i < 0) return this.toast('Lane taken.', 'warn');
+        const h = p.hands && this.s.items[p.hands];
+        if (!h || h.def !== 'pistol') return this.toast('Bring your own pistol. Dale sells them — with a permit.', 'warn');
+        this.enterSpot(p, prop, i, 'range');
+        p.act = 'range';
+        this.toast('On the line. Ears on. Move to step back.', '');
+        break;
+      }
+      case 'grow': {
+        this.ui.modal = { type: 'grow', prop: prop.id };
+        break;
+      }
+      case 'miner': {
+        this.cmdResult(this.economy.collect(p.room, prop.furn));
+        break;
+      }
+      case 'pawn': {
+        const staff = this.staffHere(p.room);
+        if (!staff) return this.toast('Nobody at the counter.', 'warn');
+        this.ui.modal = { type: 'pawn', npc: staff.id, tab: 'furniture' };
+        break;
+      }
       default:
         break;
     }
@@ -1054,6 +1157,39 @@ export class Sim {
       case 'stall_lease': return this.cmdResult(this.money.startLease('stall'));
       case 'stall_store': return this.cmdResult(this.storeCar(a.car));
       case 'stall_take': return this.cmdResult(this.takeCar());
+      case 'lease_start': {
+        const r = this.money.startLease(a.id);
+        this.cmdResult(r);
+        if (r.ok) this.ui.modal = null;
+        return r;
+      }
+      case 'crew_join': return this.cmdResult(this.crews.join(a.crew));
+      case 'crew_leave': return this.cmdResult(this.crews.leave());
+      case 'grow_plant': return this.cmdResult(this.economy.plant(p.room, a.prop));
+      case 'grow_water': return this.cmdResult(this.economy.water(p.room, a.prop));
+      case 'grow_harvest': return this.cmdResult(this.economy.harvest(p.room, a.prop));
+      case 'coins_sell': return this.cmdResult(this.economy.sellCoinsTerminal());
+      case 'buyer_sell': return this.cmdResult(this.economy.sellToBuyer(this.s.actors[a.npc], a.what));
+      case 'buy_furn': return this.cmdResult(this.furniture.buy(a.type, a.room));
+      case 'furn_pickup': return this.cmdResult(this.furniture.pickup(p.room, a.uid));
+      case 'arrange_start': {
+        const f = this.furniture.list(p.room).find((q) => q.uid === a.uid);
+        if (!f) return;
+        if (f.placed) {
+          const r = this.furniture.pickup(p.room, a.uid);
+          if (!r.ok) return this.cmdResult(r);
+        }
+        const F = FURNITURE[f.type];
+        const [fx, fy] = FACE_VEC[p.face];
+        this.ui.modal = null;
+        this.ui.arrange = { uid: a.uid, type: f.type, w: F.w, h: F.h, x: p.x + fx * 60 - F.w / 2, y: p.y + fy * 50 - F.h / 2, ok: false };
+        this.toast('Move it with WASD / the stick. E to place, Space to cancel.', '');
+        return;
+      }
+      case 'arrange_cancel': this.ui.arrange = null; return;
+      case 'collect_deliver': return this.cmdResult(this.deliverCollect(a.npc));
+      case 'pawn_sell': return this.cmdResult(this.pawnSell(a.npc, a.uid));
+      case 'pawn_buy': return this.cmdResult(this.pawnBuy(a.npc, a.item));
       case 'sleep': return this.sleep(a.hours);
       case 'apply': {
         const r = this.work.apply(a.job);
@@ -1156,6 +1292,20 @@ export class Sim {
       case 'desk':
         this.ui.modal = { type: 'police', npc: id };
         return;
+      case 'crewjoin': {
+        const cid = Object.keys(CREWS).find((k) => CREWS[k].leader === id);
+        const r = this.crews.join(cid);
+        this.sayText(npc, r.text);
+        return r;
+      }
+      case 'crewleave': {
+        const r = this.crews.leave();
+        this.sayText(npc, r.ok ? 'Then get gone.' : r.text);
+        return r;
+      }
+      case 'sellbloom': return this.cmdResult(this.economy.sellToBuyer(npc, 'bloom'));
+      case 'sellcoin': return this.cmdResult(this.economy.sellToBuyer(npc, 'coin'));
+      case 'collectpay': return this.cmdResult(this.deliverCollect(id));
       case 'useprop': {
         const prop = this.world.prop(p.room, a.prop);
         this.useProp(prop);
@@ -1185,6 +1335,9 @@ export class Sim {
     if (it.order) {
       this.toast('That order is for a table.', 'warn');
       return;
+    }
+    if (d.kind === 'cash' && this.s.favors.some((f) => f.status === 'active' && f.giver === npc.id && f.collected)) {
+      return this.cmdResult(this.deliverCollect(npc.id));
     }
     if (d.kind === 'cash') {
       const amt = Math.min(it.n, amount || it.n);
@@ -1285,6 +1438,69 @@ export class Sim {
     return { ok: true, text: 'Your car is out front.' };
   }
 
+  dance(p, dt) {
+    const _ = scratch(p);
+    _.danceT = (_.danceT || 0) + dt;
+    if (_.danceT < 3) return;
+    _.danceT = 0;
+    p.stats.mind = clamp(p.stats.mind + 1.6, 0, 100);
+    p.stats.stamina = Math.max(0, p.stats.stamina - 4);
+    for (const id in this.s.actors) {
+      const a = this.s.actors[id];
+      if (a.kind === 'npc' && a.room === p.room && a.act === 'dance' && Math.hypot(a.x - p.x, a.y - p.y) < 120) {
+        adjustRel(this, a, 'p', 0.8);
+        meet(a, 'p');
+      }
+    }
+  }
+
+  // King's collection: Javi paid you; now hand it over.
+  deliverCollect(npcId) {
+    const rec = this.s.favors.find((f) => f.status === 'active' && f.giver === npcId && f.collected);
+    if (!rec) return { ok: false, text: 'Nothing to hand over.' };
+    const F = FAVORS[rec.id];
+    if (!items.spendCash(this, this.player, F.amount)) return { ok: false, text: `You need $${F.amount} on you. Spent it already?` };
+    const npc = this.s.actors[npcId];
+    npc.cash += F.amount;
+    return this.work.completeFavor(rec, npc, 'paid');
+  }
+
+  pawnSell(npcId, uid) {
+    const p = this.player;
+    const it = this.s.items[uid];
+    if (!it || it.job || it.favor) return { ok: false, text: "Sal won't touch that." };
+    const d = ITEMS[it.def];
+    if (d.kind === 'cash' || d.kind === 'coin') return { ok: false, text: "That's money, genius." };
+    const offer = Math.max(1, Math.round((d.value || 1) * (it.def === 'bloom' ? 0.3 : 0.4)));
+    const npc = this.s.actors[npcId];
+    if (npc.cash < offer) return { ok: false, text: "I'm short today." };
+    items.giveNpc(this, npc, it);
+    npc.cash -= offer;
+    items.addCash(this, p, offer);
+    this.sfx('cash');
+    this.log(`Pawned the ${d.name.toLowerCase()} for $${offer}.`);
+    return { ok: true, text: `$${offer}.` };
+  }
+
+  pawnBuy(npcId, itemId) {
+    const stock = { flashlight: 10, phone: 35, bat: 20, medkit: 24, book: 3, wrench: 8 };
+    const price = stock[itemId];
+    if (price === undefined) return { ok: false, text: 'Not in stock.' };
+    const p = this.player;
+    if (items.cashOnBody(this, p) < price) return { ok: false, text: `$${price}.` };
+    const it = items.newItem(this, itemId);
+    if (!items.receive(this, p, it)) {
+      items.destroy(this, it);
+      return { ok: false, text: 'No room on you.' };
+    }
+    items.spendCash(this, p, price);
+    it.owner = 'p';
+    const npc = this.s.actors[npcId];
+    if (npc) npc.cash += price;
+    this.sfx('cash');
+    return { ok: true, text: `Bought a ${ITEMS[itemId].name.toLowerCase()}.` };
+  }
+
   cmdResult(r) {
     if (r && r.text) this.toast(r.text, r.ok ? 'good' : 'warn');
     return r;
@@ -1295,6 +1511,13 @@ export class Sim {
     const shop = SHOPS[shopId];
     const sv = shop && (shop.services || []).find((x) => x.id === id);
     if (!sv) return;
+    if (id === 'range') {
+      if (!items.spendCash(this, p, sv.price)) return this.cmdResult({ ok: false, text: `Range time is $${sv.price}.` });
+      this.roomState(p.room).rangeUntil = this.s.t + 30;
+      this.ui.modal = null;
+      this.sfx('cash');
+      return this.cmdResult({ ok: true, text: 'Lane rounds are on the house for thirty minutes.' });
+    }
     if (id === 'treat') {
       if (p.stats.health >= 98) return this.cmdResult({ ok: false, text: "You're fine. Go home." });
       if (!items.spendCash(this, p, sv.price)) return this.cmdResult({ ok: false, text: `Treatment is $${sv.price}.` });
@@ -1319,11 +1542,19 @@ export class Sim {
     const npc = npcId ? this.s.actors[npcId] : null;
     if (!shop && npc && npc.sells) price = (npc.sells.find((x) => x[0] === itemId) || [])[1];
     if (price === undefined) return;
+    const permit = shop && shop.permit && shop.permit[itemId];
+    if (permit && !p.licenses[permit]) {
+      this.toast('No permit, no sale. Permits window at the 5th Precinct.', 'warn');
+      if (npc) this.sayText(npc, "Can't sell you that without a permit. State law.");
+      return;
+    }
     if (items.cashOnBody(this, p) < price) {
       this.toast(`You need $${price}.`, 'warn');
       return;
     }
     const it = items.newItem(this, itemId);
+    if (itemId === 'ammo') it.n = (shop && shop.ammoPack) || 24;
+    if (itemId === 'pistol') it.ammo = 0;
     const where = items.receive(this, p, it);
     if (!where) {
       items.destroy(this, it);

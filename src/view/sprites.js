@@ -216,7 +216,7 @@ export function propParts(prop) {
       ellipse(c, w / 2, -12, 11, 5.5, '#b8283f');
       ellipse(c, w / 2, -13, 9, 4, '#d43a55');
     })];
-    case 'booth': return [
+    case 'booth': if (prop.velvet) return velvetBooth(prop); return [
       part(x, y, w, h, 30, y + 54, (c) => {
         shadowBlob(c, w / 2 + 4, h / 2 + 6, w * 0.6, h * 0.66, 0.32);
         // chrome-trimmed end panel on the wall side ties the two benches together
@@ -724,6 +724,96 @@ export function propParts(prop) {
       fillRR(c, w - 67, h - 59, 34, 17, 1, '#1d3b5a', null);
       text(c, 'DISPATCH', w / 2, h - 30, { size: 8, color: '#1d1d1d' });
     })];
+    case 'barcounter': return [part(x, y, w, h, 96, y + h, (c) => {
+      // bottle shelf behind the bar
+      fillRR(c, 0, -94, w, 40, 2, '#1d1626', '#000', 1);
+      for (let k = 0; k < Math.floor(w / 14); k++) fillRR(c, 6 + k * 14, -88 + (k % 3) * 2, 8, 22 - (k % 3) * 2, 2, ['#7cf29a', '#ff8fb4', '#64b5f6', '#ffd23f', '#c792ff'][k % 5], null);
+      line(c, 0, -60, w, -60, '#c792ff', 2);
+      box(c, 0, 0, w, h, 42, '#2a2036', '#3a2148');
+      line(c, 0, h - 42 + h - 4, w, h - 42 + h - 4, '#c792ff', 2);
+      for (let k = 20; k < w; k += 40) line(c, k, h - 36, k, h - 4, 'rgba(199,146,255,0.35)', 2);
+    })];
+    case 'djbooth': return [part(x, y, w, h, 50, y + h, (c) => {
+      box(c, 0, 0, w, h, 40, '#1d1626', '#2a2036');
+      for (const tx of [30, w - 30]) {
+        circle(c, tx, h - 40 + 10, 14, '#111');
+        circle(c, tx, h - 40 + 10, 4, '#c792ff');
+      }
+      fillRR(c, w / 2 - 20, h - 36, 40, 10, 1, '#333', null);
+      for (let k = 0; k < 6; k++) circle(c, w / 2 - 15 + k * 6, h - 31, 1.5, ['#7cf29a', '#ff5d8f'][k % 2]);
+      text(c, 'DJ', w / 2, h - 12, { size: 10, color: '#c792ff' });
+    })];
+    case 'speaker': return [part(x, y, w, h, 70, y + h, (c) => {
+      box(c, 0, 0, w, h, 66, '#1d1d22', '#141418');
+      circle(c, w / 2, h - 46, 12, '#2b2b2f');
+      circle(c, w / 2, h - 46, 5, '#444');
+      circle(c, w / 2, h - 18, 7, '#2b2b2f');
+    })];
+    case 'dancespot': return [];
+    case 'glasscounter': return [part(x, y, w, h, 50, y + h, (c) => {
+      box(c, 0, 0, w, h, 42, 'rgba(190,220,235,0.45)', '#3a2a1c');
+      fillRR(c, 6, h - 40, w - 12, 20, 2, 'rgba(160,200,220,0.35)', 'rgba(255,255,255,0.4)', 1);
+      for (let k = 0; k < 6; k++) fillRR(c, 14 + k * ((w - 30) / 6), h - 34, 18, 6, 1, ['#c9a24a', '#9aa3ab', '#2b2b2b', '#c62828', '#9aa3ab', '#6b4a2a'][k], null);
+      fillRR(c, w - 60, h - 64, 40, 20, 2, '#2c2c30', '#111', 1);
+    })];
+    case 'rangelane': return [part(x, y, w, h, 40, y, (c) => {
+      fillRR(c, 0, 0, w, h, 2, '#5d5a54', '#2b2a27', 1);
+      line(c, 2, 0, 2, h, '#f4f4f0', 2);
+      line(c, w - 2, 0, w - 2, h, '#f4f4f0', 2);
+      // target at the far end
+      fillRR(c, w / 2 - 16, 6, 32, 42, 1, '#f4efe2', '#555', 1);
+      for (let r = 14; r > 2; r -= 4) {
+        c.beginPath();
+        c.arc(w / 2, 26, r, 0, Math.PI * 2);
+        c.strokeStyle = r % 8 === 2 ? '#c62828' : '#1d1d1d';
+        c.lineWidth = 1.5;
+        c.stroke();
+      }
+      fillRR(c, 4, h - 24, w - 8, 10, 2, '#7a6a52', null);
+    })];
+    case 'homeweights': return [part(x, y, w, h, 40, y + h, (c) => {
+      shadowBlob(c, w / 2 + 3, h / 2 + 4, w * 0.55, h * 0.5, 0.3);
+      fillRR(c, 10, h / 2 - 8, w - 20, 16, 5, '#1f1f22', '#000', 1);
+      fillRR(c, 14, h / 2 - 6, w - 28, 10, 4, '#2c5aa0', null);
+      for (const ux of [w * 0.2, w * 0.8]) fillRR(c, ux - 3, -30, 6, h / 2 + 26, 2, '#5d656c', null);
+      line(c, -4, -26, w + 4, -26, '#c7ccd1', 3);
+      fillRR(c, -8, -36, 8, 20, 2, '#1d1d1d', null);
+      fillRR(c, w, -36, 8, 20, 2, '#1d1d1d', null);
+    })];
+    case 'shelfunit': return [part(x, y, w, h, 70, y + h, (c) => {
+      box(c, 0, 0, w, h, 64, '#8a6a48', '#6b4a30');
+      for (let k = 0; k < 3; k++) line(c, 2, h - 60 + k * 20, w - 2, h - 60 + k * 20, 'rgba(0,0,0,0.35)', 2);
+      for (let k = 0; k < 5; k++) fillRR(c, 8 + k * 18, h - 58, 10, 16, 1, ['#c62828', '#2c5aa0', '#7cb342', '#ffd23f', '#ececec'][k], null);
+    })];
+    case 'minerrig': return [part(x, y, w, h, 52, y + h, (c) => {
+      box(c, 0, 0, w, h, 44, '#2b2e33', '#1d1f22', { r: 3 });
+      for (let k = 0; k < 4; k++) {
+        fillRR(c, 6 + k * 12, h - 42, 10, 26, 1, '#3b3e44', null);
+        circle(c, 11 + k * 12, h - 30, 4, '#555');
+      }
+      text(c, 'B¢', w - 10, h - 46, { size: 7, color: '#ffd23f' });
+    })];
+    case 'growtable': return [part(x, y, w, h, 76, y + h, (c) => {
+      // lamp arm and hood over the tray
+      line(c, 10, h - 4, 10, -64, '#5d656c', 3);
+      line(c, 10, -64, w / 2, -64, '#5d656c', 3);
+      fillRR(c, w / 2 - 40, -70, 80, 10, 3, '#3a3d42', null);
+      box(c, 0, 0, w, h, 24, '#3b2a1e', '#5d656c');
+      fillRR(c, 6, h - 24 + 4 - h + h * 0.2, w - 12, h * 0.6, 2, '#2a1c12', null);
+    })];
+    case 'metalshelf': return [part(x, y, w, h, 96, y + h, (c) => {
+      for (const ux of [2, w - 6]) fillRR(c, ux, -90, 4, h + 90, 1, '#9aa3ab', null);
+      for (let lvl = 0; lvl < 4; lvl++) {
+        const ly = h - 4 - lvl * 30;
+        fillRR(c, 0, ly - 4, w, 5, 1, '#c7ccd1', 'rgba(0,0,0,0.3)', 0.6);
+        if (lvl % 2) for (let k = 0; k < 3; k++) fillRR(c, 10 + k * 44, ly - 24, 34, 20, 1, '#c8a06a', 'rgba(0,0,0,0.3)', 0.6);
+      }
+    })];
+    case 'utilitysink': return [part(x, y, w, h, 40, y + h, (c) => {
+      box(c, 0, 0, w, h, 34, '#c7ccd1', '#9aa3ab');
+      fillRR(c, 6, h - 32, w - 12, 12, 3, '#8e999f', null);
+      line(c, w / 2, h - 40, w / 2, h - 32, '#9aa3ab', 3);
+    })];
     case 'parkbench': return parkBench(prop);
     case 'busbench': return [part(x, y, w, h, 16, y, (c) => {
       fillRR(c, 0, 0, w, h, 2, '#7d8b94', '#3b444a', 1);
@@ -732,6 +822,22 @@ export function propParts(prop) {
     default:
       return [];
   }
+}
+
+function velvetBooth(prop) {
+  // the diner booth, re-upholstered in purple velvet for the club
+  const parts = propParts({ ...prop, velvet: false });
+  return parts.map((pt) => {
+    const c2 = makeCanvas(pt.canvas.width, pt.canvas.height);
+    const g = c2.getContext('2d');
+    g.drawImage(pt.canvas, 0, 0);
+    g.globalCompositeOperation = 'hue';
+    g.fillStyle = '#7a3bd1';
+    g.fillRect(0, 0, c2.width, c2.height);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(pt.canvas, 0, 0);
+    return { ...pt, canvas: c2 };
+  });
 }
 
 function parkBench(prop) {
@@ -1182,6 +1288,14 @@ export function drawItem(c, def, s = 24, it = null) {
     case 'plates': circle(c, 0, 0, 10, '#1d1d1d'); circle(c, 0, 0, 3, '#5d656c'); circle(c, -3, -3, 2, 'rgba(255,255,255,0.15)'); break;
     case 'lumber': c.rotate(0.5); for (let k = 0; k < 3; k++) fillRR(c, -3 + k * 3 - 3, -13, 3, 26, 0.5, ['#d8b47a', '#c8a06a', '#e2c08a'][k], 'rgba(90,60,30,0.5)', 0.5); break;
     case 'cinder': for (let k = 0; k < 2; k++) fillRR(c, -11 + k * 11, -6, 10, 12, 1, '#b4ada0', 'rgba(0,0,0,0.3)', 0.8); break;
+    case 'pistol': c.rotate(-0.2); fillRR(c, -10, -4, 20, 7, 2, '#2b2b2b', '#000', 1); fillRR(c, -8, 1, 7, 10, 2, '#3a3a3a', null); line(c, 10, -1, 12, -1, '#555', 2); break;
+    case 'ammo': fillRR(c, -8, -6, 16, 12, 1, '#7a6a3a', '#3a2a10', 1); text(c, '9mm', 0, 0.5, { size: 5, color: '#f4efe2' }); break;
+    case 'cuttings': for (let k = 0; k < 3; k++) { line(c, -4 + k * 4, 8, -4 + k * 4 + (k - 1) * 2, -6, '#4f7d3a', 2); ellipse(c, -4 + k * 4 + (k - 1) * 2, -7, 3, 2, '#62874c'); } fillRR(c, -8, 6, 16, 5, 2, '#b36a43', null); break;
+    case 'bloom': for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; ellipse(c, Math.cos(a) * 5, Math.sin(a) * 5, 4, 2.5, '#9ef0ff'); } circle(c, 0, 0, 3, '#fff6a8'); circle(c, 0, 0, 9, 'rgba(158,240,255,0.25)'); break;
+    case 'coin': fillRR(c, -5, -9, 10, 18, 2, '#2b2e33', '#000', 1); fillRR(c, -3, -13, 6, 5, 1, '#9aa3ab', null); text(c, 'B¢', 0, 2, { size: 6, color: '#ffd23f' }); break;
+    case 'package': fillRR(c, -11, -6, 22, 12, 2, '#a07a4a', '#5a4026', 1); line(c, -11, 0, 11, 0, '#9aa3ab', 3); line(c, 0, -6, 0, 6, '#9aa3ab', 3); break;
+    case 'limesoda': fillRR(c, -4, -8, 8, 16, 2, 'rgba(160,240,150,0.85)', '#3a7a2a', 1); circle(c, 2, -9, 2, '#c62828'); break;
+    case 'energy': fillRR(c, -5, -8, 10, 16, 2, '#1d1d1d', '#000', 1); text(c, '⚡', 0, 1, { size: 8, color: '#7cf29a' }); break;
     case 'dumbbell': line(c, -8, 0, 8, 0, '#9aa3ab', 3); fillRR(c, -12, -6, 6, 12, 2, '#1d1d1d', null); fillRR(c, 6, -6, 6, 12, 2, '#1d1d1d', null); break;
     case 'book': case 'manual': fillRR(c, -7, -10, 14, 20, 1.5, def === 'manual' ? '#2c5aa0' : '#8e3b2f', '#222', 1); fillRR(c, 5, -9, 2, 18, 0, '#f2efe6', null); fillRR(c, -4, -6, 8, 3, 0, 'rgba(255,255,255,0.6)', null); break;
     default: circle(c, 0, 0, 7, '#999');

@@ -354,9 +354,11 @@ export class Work {
     const s = this.s;
     if (!npc.favors || !npc.favors.length) return null;
     if (s.favors.some((f) => f.giver === npc.id && f.status === 'active')) return null;
+    const mine = this.s.actors.p.crew;
     for (const id of npc.favors) {
       const F = FAVORS[id];
-      if (relV(npc, 'p') < F.minRel) continue;
+      if (F.crew && mine && mine !== F.crew) continue;
+      if (relV(npc, 'p') < F.minRel && !(F.crew && mine === F.crew)) continue;
       if ((s.favorCooldown[id] || 0) > s.t) continue;
       if (F.kind === 'quiet' && !inWindow(tod(s.t), hm('17:00'), hm('23:59'))) continue;
       return id;
@@ -375,6 +377,13 @@ export class Work {
       rec.from = nextMidnight + hm(F.window[0]);
       rec.due = nextMidnight + hm(F.window[1]);
       rec.noisy = false;
+    } else if (F.kind === 'watch') {
+      const day0 = s.t - tod(s.t);
+      let from = day0 + hm(F.window[0]);
+      if (from + 30 < s.t) from += DAY;
+      rec.from = from;
+      rec.due = from + (hm(F.window[1]) - hm(F.window[0]));
+      rec.time = 0;
     } else {
       rec.due = s.t + F.dueHours * 60;
     }
@@ -396,8 +405,10 @@ export class Work {
         addCash(sim, p, F.reward.cash);
       }
     }
+    if (F.kind === 'collect') rec.collected = false;
     s.favors.push(rec);
-    sim.log(`Favor for ${s.actors[F.giver].short}: ${F.short}${F.kind !== 'quiet' ? ` (by ${clock12(rec.due)})` : ''}.`);
+    if (F.heat) sim.addHeat(Math.round(F.heat / 2), `running errands for the ${F.crew === 'cottonmouths' ? 'Cottonmouths' : 'Canal Kings'}`);
+    sim.log(`Favor for ${s.actors[F.giver].short}: ${F.short}${F.kind !== 'quiet' && F.kind !== 'watch' ? ` (by ${clock12(rec.due)})` : ''}.`);
     sim.sfx('tick');
   }
 
@@ -439,6 +450,46 @@ export class Work {
     return F.thanks;
   }
 
+  // King's collection: a hard line or a threat that lands makes the mark pay.
+  collectFrom(npc) {
+    const sim = this.sim;
+    const rec = this.s.favors.find((f) => f.status === 'active' && FAVORS[f.id].kind === 'collect' && FAVORS[f.id].from === npc.id && !f.collected);
+    if (!rec) return false;
+    const F = FAVORS[rec.id];
+    npc.cash = Math.max(0, npc.cash - F.amount);
+    addCash(sim, this.s.actors.p, F.amount);
+    rec.collected = true;
+    remember(sim, npc, { type: 'threatened', who: 'p' });
+    adjustRel(sim, npc, 'p', -10);
+    sim.log(`${npc.short} pays up: $${F.amount} for ${this.s.actors[F.giver].short}.`);
+    sim.toast(`Collected $${F.amount}. Bring it to ${this.s.actors[F.giver].short}.`, 'good');
+    return true;
+  }
+
+  // Shared ending for favors that pay out (crew pay is under the table: heat).
+  completeFavor(rec, npc, memType = 'helped') {
+    const sim = this.sim;
+    const s = this.s;
+    const F = FAVORS[rec.id];
+    rec.status = 'done';
+    s.favorCooldown[rec.id] = s.t + F.cooldown * DAY;
+    const giver = s.actors[F.giver];
+    if (F.reward.cash) {
+      giver.cash = Math.max(0, giver.cash - F.reward.cash);
+      addCash(sim, s.actors.p, F.reward.cash);
+    }
+    adjustRel(sim, giver, 'p', F.reward.rel);
+    remember(sim, giver, { type: memType, who: 'p', amt: F.amount || F.reward.cash });
+    if (F.crew) sim.addHeat(4, 'under-the-table pay');
+    sim.repChange(1, 'came through on a favor', giver.room);
+    s.stats.favors++;
+    sim.log(`Favor done for ${giver.short}.${F.reward.cash ? ` +$${F.reward.cash}.` : ''}`, 'good');
+    sim.sfx('cash');
+    if (giver.loaded && giver.room === s.actors.p.room) sim.sayText(giver, F.thanks);
+    sim.wantSave = true;
+    return { ok: true, text: F.thanks };
+  }
+
   noise(room, x, y, why) {
     const s = this.s;
     const m = tod(s.t);
@@ -476,6 +527,23 @@ export class Work {
       if (f.status !== 'active') continue;
       const F = FAVORS[f.id];
       const giver = s.actors[f.giver];
+      if (F.kind === 'watch') {
+        const p = s.actors.p;
+        const [room, ax, ay, ar] = F.area;
+        if (s.t >= f.from && s.t < f.due && p.room === room && Math.hypot(p.x - ax, p.y - ay) < ar) f.time += sim.lastDm;
+        if (s.t >= f.due) {
+          if (f.time >= F.need) this.completeFavor(f, giver, 'helped');
+          else {
+            f.status = 'failed';
+            s.favorCooldown[f.id] = s.t + F.cooldown * DAY;
+            remember(sim, giver, { type: 'welched', who: 'p', task: F.short.charAt(0).toLowerCase() + F.short.slice(1) });
+            adjustRel(sim, giver, 'p', F.fail.rel);
+            sim.addHeat(6, 'leaving a crew hanging');
+            sim.log(`You didn't show for ${giver.short}'s watch.`, 'bad');
+          }
+        }
+        continue;
+      }
       if (F.kind === 'quiet') {
         if (s.t >= f.due) {
           f.status = f.noisy ? 'failed' : 'done';
@@ -499,6 +567,7 @@ export class Work {
         remember(sim, giver, { type: 'welched', who: 'p', task: F.short.charAt(0).toLowerCase() + F.short.slice(1) });
         adjustRel(sim, giver, 'p', F.fail.rel);
         sim.repChange(-2, 'welched on a favor', giver.room);
+        if (F.crew) sim.addHeat(8, 'an unpaid favor to a crew');
         sim.log(`You welched on ${giver.short}: ${F.short.toLowerCase()}.`, 'bad');
         sim.toast(`Favor failed: ${F.short}`, 'bad');
         if (f.uid && s.items[f.uid] && s.items[f.uid].where === 'ground') destroy(sim, s.items[f.uid]);

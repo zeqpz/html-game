@@ -103,6 +103,10 @@ export class View {
           if (e.how !== 'edge') this.fade = 1;
           break;
         case 'snap': this.snapT = 4; break;
+        case 'muzzle':
+          for (let i = 0; i < 10; i++) this.particles.push({ room: e.room, x: e.x, y: e.y, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 120, t: 0, life: 0.12, color: i % 2 ? '#fff3a0' : '#ffb347', r: 3.5 });
+          this.flash = Math.max(this.flash, 0.12);
+          break;
         case 'down': if (e.id === 'p') this.downT = 3; break;
         case 'respawn': this.fade = 1; this.downT = 0; break;
         default: break;
@@ -553,6 +557,7 @@ export class View {
         bar = prop.type === 'rack';
       } else pose = sp0;
     } else if (a.act === 'work') pose = 'work';
+    else if (a.act === 'dance') pose = 'dance';
     const moving = (_.speed || 0) > 14 && !a.spot && !a.downUntil;
     const strike = _.strikeAnim > 0 ? 1 - _.strikeAnim / 0.34 : 0;
     const held = a.hands && sim.s.items[a.hands] ? sim.s.items[a.hands].def : null;
@@ -605,6 +610,53 @@ export class View {
         line(ctx, d.x, d.y, d.x + Math.cos(ma) * R * 0.8, d.y + Math.sin(ma) * R * 0.8, '#222', 1);
         circle(ctx, d.x, d.y, 1.2, '#c0392b');
       }
+    }
+    if (room.id === 'club') {
+      // the floor lights pulse to the music
+      const t = this.time;
+      for (let ty = 0; ty < 6; ty++) for (let tx = 0; tx < 10; tx++) {
+        const v = Math.sin(t * 3 + tx * 0.9 + ty * 1.3) + Math.sin(t * 2.1 - tx * 0.5);
+        if (v < 0.9) continue;
+        const hue = (tx * 40 + ty * 25 + t * 60) % 360;
+        ctx.fillStyle = `hsla(${hue},90%,60%,${Math.min(0.55, (v - 0.9) * 0.5)})`;
+        ctx.fillRect(300 + tx * 30, 300 + ty * 30, 29, 29);
+      }
+    }
+    // grow trays show the plants
+    for (const prop of room.props) {
+      if (prop.type !== 'growtable') continue;
+      const g = (sim.s.grow || {})[`${room.id}:${prop.id}`];
+      if (!g) continue;
+      const n = 5;
+      for (let k = 0; k < n; k++) {
+        const px = prop.x + 18 + k * ((prop.w - 36) / (n - 1));
+        const py = prop.y + prop.h * 0.5;
+        const hgt = 6 + g.growth * 26;
+        const col = g.dead ? '#6b5a3e' : g.water < 30 ? '#8a9a4a' : '#4f8a3a';
+        line(ctx, px, py, px, py - hgt, col, 2.5);
+        for (let lf = 0; lf < 3; lf++) ellipse(ctx, px + (lf % 2 ? 4 : -4), py - hgt * (0.4 + lf * 0.2), 4, 2, col);
+        if (g.growth >= 1 && !g.dead) {
+          const glow = 0.6 + 0.4 * Math.sin(this.time * 2 + k);
+          circle(ctx, px, py - hgt - 2, 7, `rgba(158,240,255,${0.25 * glow})`);
+          circle(ctx, px, py - hgt - 2, 3.5, '#9ef0ff');
+        }
+      }
+    }
+    // mining rig LEDs
+    for (const prop of room.props) {
+      if (prop.type !== 'minerrig') continue;
+      for (let k = 0; k < 4; k++) circle(ctx, prop.x + 11 + k * 12, prop.y - 4, 1.5, Math.sin(this.time * 7 + k * 1.7) > 0 ? '#7cf29a' : '#1d3b2a');
+    }
+    // furniture ghost while arranging
+    const A = sim.ui.arrange;
+    if (A && room.id === sim.player.room) {
+      ctx.fillStyle = A.ok ? 'rgba(123,228,149,0.28)' : 'rgba(255,107,94,0.3)';
+      ctx.strokeStyle = A.ok ? '#7be495' : '#ff6b5e';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.fillRect(A.x, A.y, A.w, A.h);
+      ctx.strokeRect(A.x, A.y, A.w, A.h);
+      ctx.setLineDash([]);
     }
     if (room.id === 'garage') {
       const stored = Object.values(sim.s.cars || {}).find((c) => c.stored === 'stall');

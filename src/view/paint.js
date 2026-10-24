@@ -267,7 +267,7 @@ function paintFloor(ctx, L, x, y, w, h, rnd) {
   ctx.restore();
 }
 
-const FLOOR_DECOR = new Set(['rug', 'mat', 'runner', 'carpet', 'stallpaint']);
+const FLOOR_DECOR = new Set(['rug', 'mat', 'runner', 'carpet', 'stallpaint', 'dancefloor']);
 
 // A door set into the back wall, seen face on.
 function backDoor(ctx, d, L, wallH) {
@@ -301,6 +301,18 @@ function backDoor(ctx, d, L, wallH) {
 }
 
 function floorDecor(ctx, d, rnd) {
+  if (d.type === 'dancefloor') {
+    // base tiles; the lights are animated by the view
+    const ts = 30;
+    for (let ty = 0; ty * ts < d.h; ty++) for (let tx = 0; tx * ts < d.w; tx++) {
+      ctx.fillStyle = (tx + ty) % 2 ? '#1d1626' : '#2a2036';
+      ctx.fillRect(d.x + tx * ts, d.y + ty * ts, ts - 1, ts - 1);
+    }
+    ctx.strokeStyle = 'rgba(199,146,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(d.x - 2, d.y - 2, d.w + 4, d.h + 4);
+    return;
+  }
   if (d.type === 'stallpaint') {
     ctx.strokeStyle = 'rgba(255,210,63,0.8)';
     ctx.lineWidth = 5;
@@ -782,6 +794,32 @@ function wallDecor(ctx, d, L, rnd, def) {
       fillRR(ctx, d.x + 6, d.y + 34, 36, 12, 1, '#b3261e', null);
       text(ctx, 'STAFF ONLY', d.x + 24, d.y + 40, { size: 5.5, color: '#fff' });
       circle(ctx, d.x + 40, d.y + 60, 2, '#c7ccd1');
+      break;
+    }
+    case 'neonsign': {
+      ctx.save();
+      ctx.font = `900 ${d.small ? 18 : 30}px Impact, Arial Black, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = d.color;
+      ctx.shadowBlur = 16;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = d.color;
+      ctx.strokeText(d.text, d.x, d.y + 20);
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = '#fff4ff';
+      ctx.fillText(d.text, d.x, d.y + 20);
+      ctx.restore();
+      break;
+    }
+    case 'gunrack': {
+      fillRR(ctx, d.x, d.y, d.w, 96, 2, '#3a2a1c', '#1d140c', 2);
+      for (let k = 0; k < 6; k++) {
+        const gx = d.x + 16 + k * ((d.w - 30) / 6);
+        fillRR(ctx, gx, d.y + 10, 6, 76, 2, '#2b2b2b', null);
+        fillRR(ctx, gx - 2, d.y + 54, 10, 28, 2, '#6b4a2a', null);
+      }
+      line(ctx, d.x + 6, d.y + 50, d.x + d.w - 6, d.y + 50, '#c9a24a', 2);
       break;
     }
     case 'pegboard': {

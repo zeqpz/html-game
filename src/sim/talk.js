@@ -5,6 +5,7 @@ import { GREET, SAY, REPLY } from '../data/lines.js';
 import { PERSONALITIES } from '../data/personalities.js';
 import { ITEMS } from '../data/items.js';
 import { FAVORS } from '../data/work.js';
+import { CREWS } from '../data/crews.js';
 import { relV, adjustRel, remember, tier, latest, quote, meet } from './memory.js';
 import { clamp, clock12 } from './util.js';
 
@@ -23,7 +24,8 @@ export function feel(sim, npc) {
   const r = npc.rel.p;
   const v = r ? r.v : 0;
   const rep = sim.s.actors.p.stats.reputation;
-  return r && r.met ? v : v + (rep - 50) * 0.25;
+  const crew = sim.crews ? sim.crews.feelMod(npc) : 0;
+  return (r && r.met ? v : v + (rep - 50) * 0.25) + crew;
 }
 
 function band(v) {
@@ -70,6 +72,12 @@ function contextRemark(sim, npc, p) {
 
 function options(sim, npc) {
   const d = sim.dialog;
+  if (d.offer && d.offer.startsWith('join:')) {
+    return [
+      { tone: 'accept', text: pick(sim, ["I'm in.", "Let's do it.", 'Count me in.']) },
+      { tone: 'decline', text: pick(sim, ['I roll solo.', 'Not my thing.', 'Maybe later.']) },
+    ];
+  }
   if (d.offer) {
     const F = FAVORS[d.offer];
     return [
@@ -104,6 +112,16 @@ export function chooseTone(sim, tone) {
   const opt = d.options.find((o) => o.tone === tone);
   if (opt) d.log.push({ who: 'p', text: opt.text });
 
+  if (d.offer && d.offer.startsWith('join:')) {
+    const cid = d.offer.slice(5);
+    if (tone === 'accept') {
+      const r = sim.crews.join(cid);
+      d.log.push({ who: d.npc, text: r.ok ? 'Good. You ride with us now. Don\'t make me regret it.' : r.text });
+    } else d.log.push({ who: d.npc, text: pick(sim, ['Your call. Offer won\'t last forever.', 'Suit yourself.']) });
+    d.offer = null;
+    d.turn++;
+    return afterTurn(sim, d, npc);
+  }
   if (d.offer) {
     const F = FAVORS[d.offer];
     if (tone === 'accept') {
@@ -137,8 +155,12 @@ export function chooseTone(sim, tone) {
         remember(sim, npc, { type: 'talk_good', who: 'p' });
       }
     } else if (outcome === 'bad') d.bad++;
-    // a favor comes from straight talk once they like you enough
-    if (tone === 'straight' && outcome === 'good') {
+    // a crew leader might ask you to roll with them
+    const leaderOf = Object.keys(CREWS).find((k) => CREWS[k].leader === npc.id);
+    if (tone === 'straight' && outcome === 'good' && leaderOf && sim.crews.canJoin(leaderOf).ok && relV(npc, 'p') >= CREWS[leaderOf].joinRel + 10) {
+      d.offer = `join:${leaderOf}`;
+      reply += ` You should roll with us. ${CREWS[leaderOf].name} take care of their own.`;
+    } else if (tone === 'straight' && outcome === 'good') {
       const fav = sim.work.availableFavor(npc);
       if (fav) {
         d.offer = fav;
@@ -153,15 +175,17 @@ export function chooseTone(sim, tone) {
       adjustRel(sim, npc, 'p', -2);
       sim.repChange(+1, 'held your ground', npc.room);
       remember(sim, npc, { type: 'threatened', who: 'p' });
+      if (sim.work.collectFrom(npc)) reply += ' ...Fine. Take it. Tell King we\'re square.';
     } else {
       const dv = outcome === 'ok' ? -6 : -11;
       adjustRel(sim, npc, 'p', dv * (P.grudge || 1));
       remember(sim, npc, { type: 'talk_bad', who: 'p' });
+      sim.crews.onHostile(npc, 6, 'an insult');
       d.bad++;
       if (outcome === 'bad') {
         const dislikes = relV(npc, 'p') < -10;
         const volatile = npc.personality === 'volatile';
-        if ((dislikes || volatile) && sim.rng.chance(P.temper * (dislikes ? 1.3 : 1))) {
+        if ((dislikes || volatile) && sim.rng.chance((P.temper + sim.crews.temperMod(npc)) * (dislikes ? 1.3 : 1))) {
           d.log.push({ who: d.npc, text: reply });
           d.done = true;
           d.fight = true;

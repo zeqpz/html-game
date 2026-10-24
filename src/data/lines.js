@@ -225,6 +225,11 @@ export const MEMORY = {
     them: ['{t} gave me {item}.'],
     mine: '{t} gave me {item}',
   },
+  shot: {
+    you: ['You SHOT at me. I will never forget that.', 'You pulled a gun on me {ago}.'],
+    them: ['{t} started shooting {ago}. Shooting!', 'I heard {t} fire a gun {ago}.'],
+    mine: '{t} fired a gun',
+  },
   bought: {
     you: ['Thanks for the business {ago}.'],
     them: ['{t} bought something {ago}.'],

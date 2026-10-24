@@ -66,7 +66,7 @@ function drawFrontBack(c, look, o, back) {
   const ph = o.phase || 0;
   const mv = o.moving ? 1 : 0;
   const run = pose === 'run';
-  const swing = run ? Math.sin(o.t * 14) : Math.sin(ph) * mv;
+  const swing = run ? Math.sin(o.t * 14) : pose === 'dance' ? Math.sin(o.t * 6) * 0.8 : Math.sin(ph) * mv;
   let lift = 0;
   if (pose === 'lift' && o.bar) lift = (Math.sin(o.t * 2.4) * 0.5 + 0.5) * 4; // squat bob
   const dy = (sit ? 7 : 0) + lift + (o.hurt > 0 ? 1 : 0);
@@ -143,6 +143,11 @@ function drawFrontBack(c, look, o, back) {
     handR = { x: 3, y: a < -0.3 ? -40 : -32 };
   }
   if (o.eating && Math.sin(o.t * 1.3) > 0.6) handR = { x: 2, y: -33 };
+  if (pose === 'dance') {
+    const a = Math.sin(o.t * 6);
+    handL = { x: -W / 2 - 3, y: a > 0 ? -42 : -30 };
+    handR = { x: W / 2 + 3, y: a > 0 ? -30 : -42 };
+  }
   if (o.strike > 0) {
     // punch: right hand drives out toward the facing direction
     const k = Math.sin(o.strike * Math.PI);

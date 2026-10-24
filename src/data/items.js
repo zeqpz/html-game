@@ -32,6 +32,16 @@ export const ITEMS = {
   book: { name: 'Paperback', kind: 'book', w: 1, h: 2, wt: 0.3, intellect: 1.4, mind: 7, value: 5, desc: 'A dog-eared paperback. Reading takes a minute.' },
   manual: { name: 'Driver handbook', kind: 'book', w: 1, h: 2, wt: 0.3, intellect: 2.0, mind: 2, value: 8, desc: 'State driver handbook. Dry, but it helps on the test.' },
 
+  // the other economy (fictional, abstract)
+  cuttings: { name: 'Bloom cuttings', kind: 'seed', w: 1, h: 1, wt: 0.1, heat: 4, value: 20, desc: 'Cuttings of bayou bloom, a fictional night flower. Grows on a table under a lamp.' },
+  bloom: { name: 'Bayou bloom', kind: 'product', w: 1, h: 1, wt: 0.1, heat: 10, value: 40, desc: 'Glowing night flowers. Collectors pay cash, no questions. Police take a dim view.' },
+  coin: { name: 'BayouCoin', kind: 'coin', w: 1, h: 1, wt: 0, stack: true, value: 0, desc: 'Mined credits on a thumb drive. The price moves with the clock.' },
+  package: { name: 'Taped package', kind: 'contraband', w: 2, h: 1, wt: 1.2, heat: 15, value: 0, desc: "Wrapped tight in duct tape. Don't ask, don't open." },
+  pistol: { name: 'Pistol', kind: 'firearm', w: 2, h: 1, wt: 0.9, dmg: 34, range: 520, visible: true, value: 380, ammoMax: 12, desc: 'A compact 9mm. Legal with a permit — and loud.' },
+  ammo: { name: 'Ammo box', kind: 'ammo', w: 1, h: 1, wt: 0.3, stack: true, value: 1, desc: 'Range ammunition.' },
+  limesoda: { name: 'Lime soda', kind: 'drink', w: 1, h: 1, wt: 0.4, thirst: 30, mind: 4, value: 4, desc: 'Fizzy, sour, comes with a cherry.' },
+  energy: { name: 'Energy drink', kind: 'drink', w: 1, h: 1, wt: 0.4, thirst: 20, mind: 3, stamina: 40, value: 4, desc: 'Tastes like a battery. Puts a spring in your step.' },
+
   // job carry items: they belong to the job, not to you
   envelope: { name: 'Bank envelope', kind: 'job', w: 1, h: 1, wt: 0.2, value: 0, desc: 'Sealed. Signed for. Don\'t lose it.' },
   box: { name: 'Box of stock', kind: 'job', w: 2, h: 2, wt: 4, handsOnly: true, value: 0, desc: 'Cases of soda and chips.' },

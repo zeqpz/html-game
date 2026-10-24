@@ -322,3 +322,7 @@ button.answer.grey { opacity: .35; text-decoration: line-through; cursor: defaul
 #drivehud .panels em { font-style: normal; font-size: 11px; color: var(--amber); margin-left: 8px; }
 #drivehud small { color: var(--dim); font-size: 10.5px; }
 body.touch #drivehud { bottom: auto; top: 64px; }
+.ptabs.inline { padding: 0; border: 0; margin: 4px 0; }
+.crewbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.crewbar small { color: var(--dim); font-weight: 500; }
+.meter.heat { background: linear-gradient(90deg, #5d5868, #ffb36b 50%, #ff3b30); }

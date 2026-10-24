@@ -10,6 +10,7 @@
 // Lots are 540 x 540 and use lot-relative coordinates.
 
 import { ROOMS2 } from './rooms2.js';
+import { ROOMS3, DOORS3 } from './rooms3.js';
 
 export const CELL = 1400;
 
@@ -477,7 +478,15 @@ export const ROOMS = {
   },
 };
 
-Object.assign(ROOMS, ROOMS2);
+Object.assign(ROOMS, ROOMS2, ROOMS3);
+// stage-3 doors open up buildings that were "opening soon"
+for (const st in DOORS3) {
+  for (const key in DOORS3[st]) {
+    const lot = ROOMS[st].lots[key];
+    lot.doors = [...(lot.doors || []), ...DOORS3[st][key]];
+    lot.feat = (lot.feat || []).filter((f) => f.type !== 'soon' && f.type !== 'forlease');
+  }
+}
 
 // Items placed loose when a new game starts (slice: three on the floor + cash).
 export const START_LOOSE = [

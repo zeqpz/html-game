@@ -28,6 +28,7 @@ export function makeNpc(def) {
     cash: def.cash || 20, inv: [],
     home: def.home, hangout: def.hangout, sched: def.sched, staffOf: def.staffOf || null, boss: def.boss || null,
     favors: def.favors || [], neighbor: !!def.neighbor, police: !!def.police, sells: def.sells || null,
+    crew: def.crew || null, buyer: !!def.buyer, landlord: def.landlord || null,
     room: def.home, x: 0, y: 0, face: 'down',
     hands: null, act: 'idle', spot: null, loaded: false, transit: null,
     downUntil: 0, hospitalUntil: 0, fightWith: null,

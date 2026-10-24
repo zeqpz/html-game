@@ -17,6 +17,10 @@ import { drawPortrait, drawPerson } from '../view/people.js';
 import { drawCar } from '../view/sprites.js';
 import { MODELS, CAR_COLORS, STALL_RENT } from '../data/cars.js';
 import { LICENSES } from '../data/licenses.js';
+import { FURNITURE } from '../data/rooms3.js';
+import { CREWS } from '../data/crews.js';
+import { coinPrice, GROW_MINUTES } from '../sim/economy.js';
+import { LEASE_NAMES, RENT } from '../sim/money.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -83,6 +87,9 @@ export class UI {
     this.hudCache = {};
     for (const b of document.querySelectorAll('[data-panel]')) b.addEventListener('click', () => this.togglePanel(b.dataset.panel));
     $('btn-pause').addEventListener('click', () => this.openPause());
+    $('btn-home').addEventListener('click', () => {
+      if (this.sim && this.sim.furniture.canArrangeHere()) this.sim.ui.modal = { type: 'home' };
+    });
     window.addEventListener('pointermove', (e) => this.dragMove(e));
     window.addEventListener('pointerup', (e) => this.dragEnd(e));
   }
@@ -107,6 +114,10 @@ export class UI {
     }
     if (c === 'Escape') {
       if (this.drag) return true;
+      if (sim.ui.arrange) {
+        sim.cmd('arrange_cancel');
+        return true;
+      }
       if (this.pauseOpen) this.closePause();
       else if (this.panel) this.closePanel();
       else if (sim.dialog) sim.cmd('talk_close');
@@ -243,6 +254,11 @@ export class UI {
       H.classList.toggle('show', !!hit);
     }
     this.driveHud(sim);
+    const canHome = sim.furniture.canArrangeHere();
+    if (this.hudCache.home !== canHome) {
+      this.hudCache.home = canHome;
+      $('btn-home').classList.toggle('hidden', !canHome);
+    }
     // task progress
     const task = scratch(p).task;
     const tb = $('taskbar');
@@ -386,6 +402,9 @@ export class UI {
       if (m.type === 'garage' || m.type === 'fuel') key += '|' + JSON.stringify(Object.values(sim.s.cars).map((c) => [c.stored, Math.round(c.fuel), c.dmg.front + c.dmg.rear + c.dmg.left + c.dmg.right, Math.round(c.x / 50)]));
       if (m.type === 'dealer') key += '|' + this.dealerColor;
       if (m.type === 'license') key += '|' + JSON.stringify(sim.player.licenses);
+      if (m.type === 'grow') key += '|' + JSON.stringify((sim.s.grow || {})[`${sim.player.room}:${m.prop}`] || null) + Math.floor(sim.s.t / 10);
+      if (m.type === 'home' || m.type === 'pawn') key += '|' + JSON.stringify(sim.s.furn || {}) + m.tab + m.dest + JSON.stringify(sim.s.leases);
+      if (m.type === 'terminal') key += '|' + Math.floor(sim.s.t / 30) + sim.economy.coinsHeld().length;
     }
     if (key === this.keys.modal) return;
     this.keys.modal = key;
@@ -533,7 +552,99 @@ export class UI {
       }
       card.append(grid, el('p', { class: 'foot' }, `Bank ${money(sim.player.bank)} + cash ${money(cashOnBody(sim, sim.player))}. You'll need a driver license to drive it off.`));
     } else if (m.type === 'terminal') {
-      card.append(el('h2', {}, 'Market terminal'), el('p', {}, 'A screen of numbers climbing and falling. You have nothing to sell here yet.'));
+      const now = coinPrice(sim.s.t);
+      const held = sim.economy.coinsHeld().reduce((a, it) => a + it.n, 0);
+      card.append(el('h2', {}, 'Market terminal'), el('p', { class: 'sub' }, 'BayouCoin, priced off the clock. Sales go straight to your account.'));
+      const cv = document.createElement('canvas');
+      cv.width = 760;
+      cv.height = 220;
+      cv.style.width = '100%';
+      cv.style.height = '110px';
+      const c = cv.getContext('2d');
+      const pts = [];
+      for (let k = 0; k <= 120; k++) pts.push(coinPrice(sim.s.t - (120 - k) * 84));
+      const lo = Math.min(...pts) - 4;
+      const hi = Math.max(...pts) + 4;
+      c.fillStyle = '#0f1a14';
+      c.fillRect(0, 0, 760, 220);
+      c.strokeStyle = 'rgba(93,255,176,0.15)';
+      for (let gy = 0; gy < 220; gy += 44) { c.beginPath(); c.moveTo(0, gy); c.lineTo(760, gy); c.stroke(); }
+      c.strokeStyle = '#5dffb0';
+      c.lineWidth = 3;
+      c.beginPath();
+      pts.forEach((v, k) => { const X = (k / 120) * 760; const Y = 210 - ((v - lo) / (hi - lo)) * 200; k ? c.lineTo(X, Y) : c.moveTo(X, Y); });
+      c.stroke();
+      card.append(cv, el('div', { class: 'kv' },
+        el('span', {}, 'Price now'), el('b', { class: 'good' }, `$${now}`),
+        el('span', {}, 'Week range'), el('b', {}, `$${Math.round(lo + 4)} – $${Math.round(hi - 4)}`),
+        el('span', {}, 'You hold'), el('b', {}, `${held} coin`)));
+      card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('coins_sell') }, held ? `Sell ${held} coin · ~$${Math.round(held * now)}` : 'No coin to sell'));
+    } else if (m.type === 'lease') {
+      card.append(el('h2', {}, LEASE_NAMES[m.lease]), el('p', { class: 'sub' }, m.lease === 'loft' ? 'Exposed brick, tall windows, empty floor. Furnish it yourself.' : 'Concrete box, two grow tables, shelves, power and a sink.'));
+      card.append(el('div', { class: 'kv' }, el('span', {}, 'Rent'), el('b', {}, `$${RENT[m.lease]} a week`), el('span', {}, 'Due'), el('b', {}, 'Sunday nights'), el('span', {}, 'Cash on you'), el('b', {}, money(cashOnBody(sim, sim.player)))));
+      card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('lease_start', { id: m.lease }) }, `Sign — first week $${RENT[m.lease]}`));
+    } else if (m.type === 'grow') {
+      const g = (sim.s.grow || {})[`${sim.player.room}:${m.prop}`];
+      card.append(el('h2', {}, 'Grow table'), el('p', { class: 'sub' }, 'Bayou bloom: plant cuttings, keep the tray wet, harvest in about a day and a half. Good water = better quality.'));
+      if (!g) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('grow_plant', { prop: m.prop }) }, 'Plant cuttings'));
+      else if (g.dead) card.append(el('p', { class: 'bad' }, 'Dried out and dead.'), el('button', { class: 'hot wide', onclick: () => sim.cmd('grow_harvest', { prop: m.prop }) }, 'Clear the tray'));
+      else {
+        card.append(el('div', { class: 'kv' },
+          el('span', {}, 'Growth'), el('b', {}, `${Math.round(g.growth * 100)}%${g.growth < 1 ? ` · ~${Math.ceil(((1 - g.growth) * GROW_MINUTES) / 60)}h left` : ' · ready'}`),
+          el('span', {}, 'Water'), el('b', { class: g.water < 35 ? 'bad' : 'good' }, `${Math.round(g.water)}%`),
+          el('span', {}, 'Quality'), el('b', {}, Math.round(g.quality))));
+        card.append(el('button', { class: 'hot wide', onclick: () => sim.cmd('grow_water', { prop: m.prop }) }, 'Water the tray'));
+        if (g.growth >= 1) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('grow_harvest', { prop: m.prop }) }, 'Harvest'));
+      }
+    } else if (m.type === 'pawn') {
+      const npc = sim.s.actors[m.npc];
+      card.classList.add('wide');
+      card.append(el('h2', {}, 'Harbor Pawn & Thrift'), el('p', { class: 'sub' }, `${npc.short} doesn't look up. "Buy, sell, or browse. Delivery's free inside the loop."`));
+      const tabs = el('div', { class: 'ptabs inline' });
+      for (const [k, label] of [['furniture', 'Furniture'], ['used', 'Used goods'], ['sell', 'Sell']]) tabs.append(el('button', { class: m.tab === k ? 'on' : '', onclick: () => { m.tab = k; this.keys.modal = ''; } }, label));
+      card.append(tabs);
+      if (m.tab === 'furniture') {
+        const homes = sim.furniture.homes();
+        if (!m.dest || !homes.includes(m.dest)) m.dest = homes[0];
+        const dest = el('div', { class: 'pick' }, el('span', {}, 'Deliver to'));
+        for (const h of homes) dest.append(el('button', { class: `opt${m.dest === h ? ' on' : ''}`, onclick: () => { m.dest = h; this.keys.modal = ''; } }, sim.world.room(h).name));
+        card.append(dest);
+        const list = el('div', { class: 'shoplist' });
+        for (const t in FURNITURE) {
+          const F = FURNITURE[t];
+          list.append(el('button', { class: 'hot shopitem', onclick: () => sim.cmd('buy_furn', { type: t, room: m.dest }) }, el('span', { class: 'svicon' }, '🛋'), el('span', {}, el('b', {}, F.name), el('small', {}, F.blurb || (F.use ? `Use: ${F.use}` : 'Decor'))), el('em', {}, `$${F.price}`)));
+        }
+        card.append(list);
+      } else if (m.tab === 'used') {
+        const stock = { flashlight: 10, phone: 35, bat: 20, medkit: 24, book: 3, wrench: 8 };
+        const list = el('div', { class: 'shoplist' });
+        for (const id in stock) list.append(el('button', { class: 'hot shopitem', onclick: () => sim.cmd('pawn_buy', { npc: m.npc, item: id }) }, itemCanvas(id, 34), el('span', {}, el('b', {}, ITEMS[id].name), el('small', {}, ITEMS[id].desc)), el('em', {}, `$${stock[id]}`)));
+        card.append(list);
+      } else {
+        const p = sim.player;
+        const mine = [...sim.items.contItems(sim, p.pockets), p.hands && sim.s.items[p.hands]].filter((it) => it && !it.job && !it.favor && !['cash', 'coin'].includes(ITEMS[it.def].kind));
+        if (!mine.length) card.append(el('p', { class: 'sub' }, 'You have nothing Sal wants.'));
+        const list = el('div', { class: 'shoplist' });
+        for (const it of mine) {
+          const d = ITEMS[it.def];
+          const offer = Math.max(1, Math.round((d.value || 1) * (it.def === 'bloom' ? 0.3 : 0.4)));
+          list.append(el('button', { class: 'hot shopitem', onclick: () => sim.cmd('pawn_sell', { npc: m.npc, uid: it.uid }) }, itemCanvas(it.def, 34, it), el('span', {}, el('b', {}, d.name), el('small', {}, 'Sal pays 40%.')), el('em', {}, `$${offer}`)));
+        }
+        card.append(list);
+      }
+      card.append(el('p', { class: 'foot' }, `Cash on you: ${money(cashOnBody(sim, sim.player))}.`));
+    } else if (m.type === 'home') {
+      const room = sim.player.room;
+      card.append(el('h2', {}, `Arrange · ${sim.world.room(room).name}`), el('p', { class: 'sub' }, 'Furniture you bought for this place. Placed pieces stay with the lease.'));
+      const list = sim.furniture.list(room);
+      if (!list.length) card.append(el('p', { class: 'sub' }, 'Nothing delivered here yet. Harbor Pawn & Thrift on Pecan & Harbor delivers.'));
+      for (const f of list) {
+        const F = FURNITURE[f.type];
+        const row = el('div', { class: 'licrow' }, el('div', {}, el('b', {}, F.name), el('small', {}, f.placed ? 'Placed' : 'In boxes by the door')));
+        row.append(el('button', { class: 'hot', onclick: () => sim.cmd('arrange_start', { uid: f.uid }) }, f.placed ? 'Move' : 'Place'));
+        if (f.placed) row.append(el('button', { class: 'hot', onclick: () => sim.cmd('furn_pickup', { uid: f.uid }) }, 'Box up'));
+        card.append(row);
+      }
     } else if (m.type === 'trade') {
       const npc = sim.s.actors[m.npc];
       card.append(el('h2', {}, `Trade with ${npc.short}`));
@@ -807,6 +918,14 @@ export class UI {
   }
 
   panel_people(sim, body) {
+    // the street politics, as far as you can tell
+    const host = sim.crews.hostility('cottonmouths', 'canalkings');
+    body.append(el('div', { class: 'crewbar' },
+      el('span', { style: `color:${CREWS.cottonmouths.color}` }, 'Cottonmouths'),
+      el('div', { class: 'meter heat' }, el('s', { style: `left:${host}%` })),
+      el('span', { style: `color:${CREWS.canalkings.color}` }, 'Canal Kings'),
+      el('small', {}, host >= 60 ? 'at war' : host >= 40 ? 'tense' : 'uneasy truce'),
+      el('small', {}, sim.player.crew ? `You roll with the ${CREWS[sim.player.crew].name}.` : 'You roll solo.')));
     const npcs = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && a.rel.p && a.rel.p.met);
     if (!npcs.length) {
       body.append(el('p', { class: 'sub' }, "You haven't really met anyone yet. Walk up to somebody and press E."));
@@ -821,7 +940,7 @@ export class UI {
       const card = el('div', { class: 'person' },
         portrait(a.look, 64),
         el('div', { class: 'pinfo' },
-          el('div', { class: 'pname' }, el('b', {}, a.name), el('span', { class: 'chip', style: `color:${TAG_COLOR[tag]}` }, tag)),
+          el('div', { class: 'pname' }, el('b', {}, a.name), el('span', { class: 'chip', style: `color:${TAG_COLOR[tag]}` }, tag), a.crew ? el('span', { class: 'chip', style: `color:${CREWS[a.crew].color}` }, CREWS[a.crew].name) : null),
           el('small', {}, `${a.role} · ${PERSONALITIES[a.personality].label} · ${PERSONALITIES[a.personality].blurb}`),
           el('div', { class: 'relrow' }, el('div', { class: 'meter' }, el('s', { style: `left:${50 + r.v / 2}%` })), el('em', {}, `${Math.round(r.v) > 0 ? '+' : ''}${Math.round(r.v)}`)),
           mems.length ? el('ul', { class: 'mems' }, ...mems.map((m) => el('li', {}, summary(sim, a, m)))) : el('p', { class: 'sub' }, 'Nothing about you on their mind.'),

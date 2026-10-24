@@ -62,6 +62,10 @@ export class Police {
       const h = p.hands && sim.s.items[p.hands];
       const def = h && ITEMS[h.def];
       const illegalGun = def && def.kind === 'firearm' && !p.licenses.firearm;
+      if (def && def.kind === 'firearm' && p.licenses.firearm && d < 200 && (!_.holsterAt || sim.time - _.holsterAt > 60)) {
+        _.holsterAt = sim.time;
+        sim.sayText(c, 'Permit or not — holster that.');
+      }
       if (def && d < 280 && (def.visible || illegalGun) && !(def.kind === 'firearm' && p.licenses.firearm)) {
         _.chase = { x: p.x, y: p.y };
         if (d < 46) this.confiscate(c, p, h);
@@ -138,6 +142,20 @@ export class Police {
       sim.log('Stopped and searched. Clean.', '');
       sim.sayText(c, 'Alright. Move along.');
     }
+  }
+
+  // Gunfire with an officer in the room ends right there.
+  onShots(a) {
+    const sim = this.sim;
+    const cops = this.copsIn(a.room);
+    if (!cops.length) return;
+    const c = cops[0];
+    const gun = a.hands && sim.s.items[a.hands];
+    sim.sayText(c, 'DROP IT! NOW!');
+    if (gun) destroy(sim, gun);
+    sim.money.fine(300, 'discharging a firearm');
+    sim.addHeat(20, 'shooting in front of a cop');
+    sim.later(1.2, () => sim.sendTo('precinct', `${c.short} cuffs you and walks you to the front desk.`));
   }
 
   update() {}

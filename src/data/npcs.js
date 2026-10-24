@@ -215,6 +215,86 @@ NPCS.push(
   },
 );
 
+// ---------------------------------------------------------------- stage 3 cast
+const bandana = (color) => ({ hat: 'cap', hatColor: color });
+NPCS.push(
+  {
+    id: 'tasha', name: 'Tasha Greene', short: 'Tasha', personality: 'sly', role: 'Bartender, Velvet Room',
+    look: { skin: '#6a422a', hair: 'afro', hairColor: '#1a120c', top: 'tank', topColor: '#1d1d22', bottom: 'slacks', bottomColor: '#1d1d22', shoes: '#c792ff', build: 'slim', height: 1.0, chain: true },
+    stats: { strength: 34, agility: 52, intellect: 60, reputation: 62, aim: 15 },
+    cash: 220, home: 'home_tasha', staffOf: 'club',
+    sched: [['19:45', '03:00', 'work', 'club', 'bar'], ['03:00', '12:00', 'sleep', 'home_tasha'], ['12:30', '13:30', 'eat', 'diner'], ['13:30', '19:45', 'rest', 'home_tasha']],
+    favors: [],
+  },
+  {
+    id: 'dale', name: 'Dale Whitaker', short: 'Dale', personality: 'steady', role: 'Owner, Ranger Arms',
+    look: { skin: '#e8c19a', hair: 'short', hairColor: '#7a6a5a', beard: 'full', hat: 'cap', hatColor: '#4a5a3a', top: 'button', topColor: '#6b7a4a', bottom: 'jeans', bottomColor: '#3b4a6b', shoes: '#5a3a1e', build: 'heavy', height: 1.05, glasses: true },
+    stats: { strength: 55, agility: 34, intellect: 58, reputation: 60, aim: 85 },
+    cash: 400, home: 'home_dale', staffOf: 'gunshop',
+    sched: [['09:50', '19:00', 'work', 'gunshop', 'counter'], ['19:00', '20:00', 'eat', 'diner'], ['20:00', '09:50', 'sleep', 'home_dale']],
+    favors: [],
+  },
+  {
+    id: 'sal', name: 'Salvatore "Sal" Ruiz', short: 'Sal', personality: 'sly', role: 'Owner, Harbor Pawn & Thrift',
+    look: { skin: '#c68a5e', hair: 'bald', hairColor: '#333', beard: 'goatee', top: 'button', topColor: '#7a2f45', bottom: 'slacks', bottomColor: '#2c2c34', shoes: '#1b1b1e', build: 'heavy', height: 0.97, chain: true, glasses: true },
+    stats: { strength: 40, agility: 30, intellect: 64, reputation: 50, aim: 30 },
+    cash: 900, home: 'home_sal', staffOf: 'pawn',
+    sched: [['08:50', '20:00', 'work', 'pawn', 'counter'], ['20:00', '08:50', 'sleep', 'home_sal']],
+    favors: [],
+  },
+  // Cottonmouths
+  {
+    id: 'snake', name: 'Terrence "Snake" Willis', short: 'Snake', personality: 'proud', role: 'Runs the Cottonmouths', crew: 'cottonmouths',
+    look: { skin: '#4a2c1c', hair: 'braids', hairColor: '#120c0a', beard: 'goatee', ...bandana('#3d8b4f'), top: 'hoodie', topColor: '#1d1d22', bottom: 'jeans', bottomColor: '#2c3a52', shoes: '#3d8b4f', build: 'muscle', height: 1.04, chain: true },
+    stats: { strength: 70, agility: 60, intellect: 55, reputation: 72, aim: 55 },
+    cash: 600, home: 'home_snake',
+    sched: [['13:00', '19:00', 'hang', 'st_canal_harbor', 'court'], ['19:00', '20:00', 'eat', 'diner'], ['20:00', '22:30', 'hang', 'st_canal_harbor', 'court'], ['22:30', '02:00', 'hang', 'club', 'floor'], ['02:00', '13:00', 'sleep', 'home_snake']],
+    favors: ['snake_package', 'snake_watch'],
+  },
+  {
+    id: 'boo', name: 'Brianna "Boo" Lacour', short: 'Boo', personality: 'sly', role: 'Cottonmouths', crew: 'cottonmouths',
+    look: { skin: '#a8754f', hair: 'ponytail', hairColor: '#24140c', ...bandana('#3d8b4f'), top: 'tank', topColor: '#3d8b4f', bottom: 'jeans', bottomColor: '#1f2a44', shoes: '#f0f0f0', build: 'slim', height: 0.98 },
+    stats: { strength: 40, agility: 66, intellect: 58, reputation: 50, aim: 45 },
+    cash: 200, home: 'home_boo',
+    sched: [['12:00', '13:00', 'eat', 'diner'], ['13:00', '22:00', 'hang', 'st_canal_harbor', 'court'], ['22:00', '02:30', 'hang', 'club', 'bar'], ['02:30', '12:00', 'sleep', 'home_boo']],
+    favors: [],
+    sells: [['cuttings', 25]],
+  },
+  {
+    id: 'lilt', name: 'Tavion "Lil T" James', short: 'Lil T', personality: 'volatile', role: 'Cottonmouths', crew: 'cottonmouths',
+    look: { skin: '#3b2416', hair: 'short', hairColor: '#120c0a', ...bandana('#3d8b4f'), top: 'tee', topColor: '#f0f0f0', bottom: 'shorts', bottomColor: '#3d8b4f', shoes: '#1d1d1d', build: 'avg', height: 0.96 },
+    stats: { strength: 55, agility: 62, intellect: 38, reputation: 44, aim: 40 },
+    cash: 80, home: 'home_lilt',
+    sched: [['14:00', '23:00', 'hang', 'st_canal_harbor', 'court'], ['23:00', '01:00', 'hang', 'st_canal_main', 'site'], ['01:00', '14:00', 'sleep', 'home_lilt']],
+    favors: [],
+  },
+  // Canal Kings
+  {
+    id: 'king', name: 'Andrés "King" Salazar', short: 'King', personality: 'steady', role: 'Runs the Canal Kings', crew: 'canalkings',
+    look: { skin: '#b98a62', hair: 'short', hairColor: '#120c0a', beard: 'stubble', ...bandana('#8e5ad1'), top: 'jacket', topColor: '#2a1f33', top2: '#8e5ad1', bottom: 'slacks', bottomColor: '#1d1d22', shoes: '#f0f0f0', build: 'avg', height: 1.02, chain: true },
+    stats: { strength: 58, agility: 54, intellect: 70, reputation: 76, aim: 60 },
+    cash: 900, home: 'home_king',
+    sched: [['12:00', '13:00', 'eat', 'diner'], ['13:00', '20:00', 'hang', 'st_main', 'vacant'], ['20:00', '03:00', 'sit', 'club', 'floor'], ['03:00', '12:00', 'sleep', 'home_king']],
+    favors: ['king_collect'],
+  },
+  {
+    id: 'vee', name: 'Vanessa "Vee" Ortiz', short: 'Vee', personality: 'sly', role: 'Canal Kings', crew: 'canalkings',
+    look: { skin: '#c99872', hair: 'long', hairColor: '#3b2416', ...bandana('#8e5ad1'), top: 'jacket', topColor: '#8e5ad1', top2: '#1d1d22', bottom: 'jeans', bottomColor: '#1d1d22', shoes: '#1d1d1d', build: 'slim', height: 0.99, glasses: false },
+    stats: { strength: 38, agility: 58, intellect: 66, reputation: 58, aim: 40 },
+    cash: 700, home: 'home_vee', buyer: true,
+    sched: [['13:00', '21:00', 'hang', 'st_main', 'taco'], ['21:00', '03:00', 'hang', 'club', 'bar'], ['03:00', '13:00', 'sleep', 'home_vee']],
+    favors: [],
+  },
+  {
+    id: 'dash', name: 'Darius "Dash" Coleman', short: 'Dash', personality: 'volatile', role: 'Canal Kings', crew: 'canalkings',
+    look: { skin: '#5a3825', hair: 'buzz', hairColor: '#120c0a', ...bandana('#8e5ad1'), top: 'hoodie', topColor: '#8e5ad1', bottom: 'jeans', bottomColor: '#2c3a52', shoes: '#ffd23f', build: 'muscle', height: 1.03 },
+    stats: { strength: 66, agility: 58, intellect: 40, reputation: 50, aim: 48 },
+    cash: 120, home: 'home_dash',
+    sched: [['14:00', '22:00', 'hang', 'st_main', 'vacant'], ['22:00', '02:00', 'hang', 'club', 'floor'], ['02:00', '14:00', 'sleep', 'home_dash']],
+    favors: ['dash_watch'],
+  },
+);
+
 // Beat routes: [room, x, y, pause seconds].
 export const ROUTES = {
   jog: [
@@ -280,4 +360,9 @@ export const NPC_LINKS = [
   ['ray', 'delphine', 35],
   ['keisha', 'patrice', 40],
   ['keisha', 'dre', 15],
+  ['snake', 'boo', 60, 'crew'], ['snake', 'lilt', 55, 'crew'], ['boo', 'lilt', 45, 'crew'],
+  ['king', 'vee', 60, 'crew'], ['king', 'dash', 50, 'crew'], ['vee', 'dash', 40, 'crew'],
+  ['snake', 'king', -35, 'rival'], ['lilt', 'dash', -50, 'rival'], ['boo', 'vee', -25],
+  ['javi', 'vee', 25], ['javi', 'boo', 15], ['tasha', 'king', 30], ['tasha', 'snake', 10],
+  ['pruitt', 'snake', -30], ['pruitt', 'king', -25], ['dre', 'lilt', -20],
 ];

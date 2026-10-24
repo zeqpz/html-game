@@ -147,8 +147,18 @@ export class Sim {
     const pool = BARK[key];
     if (!pool) return;
     let line = pool[Math.floor(this.rng.next() * pool.length)];
-    line = line.replace(/\{p\}/g, this.player.name).replace(/\{item\}/g, vars.item || 'that');
+    line = this.fillTime(line.replace(/\{p\}/g, this.player.name).replace(/\{item\}/g, vars.item || 'that'));
     this.sayText(a, line);
+  }
+
+  // {greet} and {weather} follow the clock and the sky.
+  fillTime(line) {
+    if (!line.includes('{')) return line;
+    const m = tod(this.s.t);
+    const greet = m < 300 ? 'Late one' : m < 720 ? 'Mornin\'' : m < 1050 ? 'Afternoon' : 'Evenin\'';
+    const w = this.weather;
+    const weather = w.rain > 0.3 ? 'Wet one out there.' : m > 600 && m < 1140 && w.heat > 0.6 ? 'Hot one today.' : m >= 1260 || m < 300 ? 'Quiet night.' : 'Sticky out, huh?';
+    return line.replace(/\{greet\}/g, greet).replace(/\{weather\}/g, weather);
   }
 
   sayText(a, text) {
@@ -634,17 +644,18 @@ export class Sim {
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (d < 30) consider(d - 12, { type: 'item', uid: u, label: `Pick up ${items.itemName(it)}` });
     }
-    // people
+    // people (staff can be reached across their counter)
     for (const id in this.s.actors) {
       const a = this.s.actors[id];
       if (a === p || a.room !== p.room || !a.loaded || a.downUntil) continue;
       const dx = a.x - p.x;
       const dy = a.y - p.y;
       const d = Math.hypot(dx, dy);
-      if (d > 52) continue;
+      const reach = a.act === 'work' && a.staffOf === a.room ? 92 : 54;
+      if (d > reach) continue;
       const dot = d > 0 ? (dx * fx + dy * fy) / d : 1;
       if (dot < 0.1 && d > 22) continue;
-      consider(d - dot * 10, { type: 'npc', id, label: a.short });
+      consider(d * 0.6 - dot * 18, { type: 'npc', id, label: a.short });
     }
     // shift tasks that aren't props (spills)
     const task = this.work.currentTask();
@@ -656,6 +667,7 @@ export class Sim {
     const r = this.world.room(p.room);
     for (const prop of r.props) {
       if (!prop.use && !(task && task.prop === prop.id)) continue;
+      if (p.spot && p.spot.prop === prop.id) continue;
       const d = rectDist(prop, p.x, p.y);
       const lim = prop.wall ? 30 : 26;
       if (d > lim) continue;
@@ -665,7 +677,8 @@ export class Sim {
       const dy = cy - p.y;
       const dd = Math.hypot(dx, dy) || 1;
       const dot = (dx * fx + dy * fy) / dd;
-      consider(d + 8 - dot * 6, { type: 'prop', id: prop.id, label: this.propLabel(prop) });
+      const isTask = task && task.prop === prop.id;
+      consider(d + 8 - dot * 6 + (prop.use === 'sit' && !isTask ? 26 : 0) - (isTask ? 20 : 0), { type: 'prop', id: prop.id, label: this.propLabel(prop) });
     }
     return best;
   }
@@ -727,8 +740,12 @@ export class Sim {
     return acts;
   }
 
+  onDuty(npc) {
+    return !!npc.staffOf && npc.room === npc.staffOf && npc.loaded && !npc.downUntil && !npc.fightWith && schedNow(npc, this.s.t).act === 'work';
+  }
+
   shopFor(npc) {
-    if (npc.staffOf && npc.room === npc.staffOf && npc.act === 'work') {
+    if (this.onDuty(npc)) {
       const k = Object.keys(SHOPS).find((s) => SHOPS[s].place === npc.room);
       if (k) return k;
     }
@@ -784,7 +801,7 @@ export class Sim {
         break;
       }
       case 'buy': {
-        const staff = Object.values(this.s.actors).find((a) => a.staffOf === p.room && a.room === p.room && a.loaded && a.act === 'work');
+        const staff = Object.values(this.s.actors).find((a) => a.staffOf === p.room && this.onDuty(a));
         if (!staff) {
           this.toast('Nobody\'s behind the counter.', 'warn');
           return;

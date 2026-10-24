@@ -664,7 +664,7 @@ export class UI {
     const st = p.stats;
     const stat = (k, label, col) => el('div', { class: 'statrow' }, el('span', {}, label), el('b', {}, el('s', { style: `width:${st[k]}%;background:${col}` })), el('em', {}, st[k].toFixed(k === 'health' || k === 'mind' ? 0 : 1)));
     const jobs = Object.entries(sim.s.job.jobs).filter(([, j]) => j.hired).map(([k, j]) => `${JOBS[k].title}: ${JOBS[k].ranks[j.rank].title}, ${j.hours} h`);
-    body.append(el('div', { class: 'me' },
+    body.append(el('div', { class: 'mepanel' },
       el('div', { class: 'mecol' }, portrait(p.look, 120), el('h2', {}, p.name), el('p', { class: 'sub' }, `${weekday(sim.s.t)}, day ${dayOf(sim.s.t)}`)),
       el('div', { class: 'mecol' },
         stat('health', 'Health', '#e05252'), stat('mind', 'Mind', '#9b8cff'), stat('hunger', 'Hunger', '#f28c38'), stat('thirst', 'Thirst', '#4fb3e8'),

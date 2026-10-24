@@ -18,7 +18,7 @@ export const GREET = {
     tired: ['Mm.', 'What do you want, hon.', 'If this is about the noise again...'],
   },
   neutral: {
-    steady: ['Hey there.', "How's it going.", 'Afternoon.', 'Help you with something?'],
+    steady: ['Hey there.', "How's it going.", '{greet}.', 'Help you with something?'],
     volatile: ["What's up.", 'Hey.', "Yeah? What's good."],
     sly: ["What's the word?", 'Hey, hey. What you need?', 'My guy. Sort of.'],
     proud: ["What's up.", "How you doin'.", 'Sup.'],
@@ -235,7 +235,7 @@ export const MEMORY = {
 // One-liners shown in speech bubbles.
 export const BARK = {
   greetWarm: ['Hey, {p}!', '{p}! What\'s good?', 'Hey there, {p}.', 'Ayy, {p}.'],
-  greetNeutral: ['Hey.', "How's it going.", 'Mornin\'.', 'Evenin\'.', 'Hot one today.', "'Sup."],
+  greetNeutral: ['Hey.', "How's it going.", '{greet}.', '{greet}.', '{weather}', "'Sup."],
   greetCold: ['...', 'Hm.', 'Mm-hm.'],
   ignore: ['...', '*looks away*'],
   ask: ['Hey — got a second?', '{p}! Come here a minute.', 'Can I ask you something?'],
@@ -246,7 +246,7 @@ export const BARK = {
   win: ['Stay down.', "Don't get up.", 'Next time think first.'],
   copStop: ['Hey! Break it up!', 'Police! Knock it off!', 'That\'s enough! Both of you!'],
   copWeapon: ['Drop the {item}. Now.', "I'll take that {item}.", 'That {item} is coming with me.'],
-  copHello: ['Evening.', 'Stay out of trouble.', 'Keep it moving.', 'Hot one.'],
+  copHello: ['{greet}.', 'Stay out of trouble.', 'Keep it moving.', '{weather}'],
   pickup: ['Finders keepers.', 'Ooh, don\'t mind if I do.', 'Mine now.'],
   takeBack: ['Hey! That\'s mine!', 'Put that down!', 'That\'s MY {item}!'],
   orderUp: ['Order up!', 'Plate\'s ready!', 'Table\'s waiting, hon!'],

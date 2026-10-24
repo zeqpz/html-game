@@ -218,26 +218,32 @@ export function propParts(prop) {
     })];
     case 'booth': return [
       part(x, y, w, h, 30, y + 54, (c) => {
-        shadowBlob(c, w / 2 + 4, h / 2 + 4, w * 0.6, h * 0.62, 0.3);
-        // back bench with its tall backrest against the wall side
-        fillRR(c, 0, -28, w, 30, 6, '#b8283f', '#5c1220', 1.5);
-        vgrad(c, 0, -28, w, 8, [[0, 'rgba(255,255,255,0.25)'], [1, 'rgba(255,255,255,0)']]);
-        for (let k = 20; k < w; k += 30) line(c, k, -24, k, 0, 'rgba(0,0,0,0.15)', 2);
-        fillRR(c, 0, 0, w, 22, 5, '#c9334c', '#5c1220', 1);
-        // table
-        fillRR(c, w * 0.42 - 4, 30, 8, 22, 1, '#8c949b', null);
-        fillRR(c, 6, 24, w - 12, 24, 3, '#ece7dc', '#8c949b', 1.5);
-        line(c, 6, 46, w - 6, 46, '#c3c9ce', 2);
-        fillRR(c, w - 30, 28, 5, 9, 2, '#c62828', null);
-        fillRR(c, w - 23, 28, 5, 9, 2, '#f9c80e', null);
-        fillRR(c, w - 40, 30, 7, 6, 1, '#c0c6cc', null);
+        shadowBlob(c, w / 2 + 4, h / 2 + 6, w * 0.6, h * 0.66, 0.32);
+        // chrome-trimmed end panel on the wall side ties the two benches together
+        fillRR(c, -4, -26, 10, h + 20, 3, '#7e1a2c', '#3d0b14', 1.5);
+        line(c, 1, -22, 1, h - 10, 'rgba(255,255,255,0.18)', 1);
+        // back bench: tall tufted backrest + seat
+        fillRR(c, 4, -26, w - 4, 28, 7, '#b8283f', '#5c1220', 1.5);
+        vgrad(c, 4, -26, w - 4, 7, [[0, 'rgba(255,255,255,0.28)'], [1, 'rgba(255,255,255,0)']]);
+        for (let k = 26; k < w - 6; k += 28) line(c, k, -21, k, -2, 'rgba(60,0,10,0.3)', 2);
+        fillRR(c, 4, 0, w - 4, 20, 5, '#d03a53', '#5c1220', 1);
+        vgrad(c, 4, 14, w - 4, 6, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.25)']]);
+        // table on a chrome post
+        fillRR(c, w * 0.5 - 3, 40, 6, 16, 1, '#8c949b', null);
+        fillRR(c, 10, 24, w - 20, 22, 4, '#efeae0', '#8c949b', 1.5);
+        line(c, 12, 44, w - 12, 44, '#c3c9ce', 2.5);
+        fillRR(c, w - 34, 28, 5, 9, 2, '#c62828', null);
+        fillRR(c, w - 27, 28, 5, 9, 2, '#f9c80e', null);
+        fillRR(c, w - 46, 30, 8, 6, 1, '#c0c6cc', null);
+        circle(c, 34, 34, 5, '#fbfbf7');
       }),
       part(x, y, w, h, 0, y + h, (c) => {
-        fillRR(c, 0, 58, w, 22, 5, '#c9334c', '#5c1220', 1);
-        // front backrest faces camera
-        fillRR(c, 0, 66, w, 22, 6, '#b8283f', '#5c1220', 1.5);
-        vgrad(c, 0, 66, w, 6, [[0, 'rgba(255,255,255,0.25)'], [1, 'rgba(255,255,255,0)']]);
-        for (let k = 20; k < w; k += 30) line(c, k, 70, k, 86, 'rgba(0,0,0,0.15)', 2);
+        fillRR(c, 4, 58, w - 4, 18, 5, '#d03a53', '#5c1220', 1);
+        // front backrest faces the camera, lower than the back one
+        fillRR(c, 4, 70, w - 4, 16, 6, '#a82238', '#5c1220', 1.5);
+        vgrad(c, 4, 70, w - 4, 5, [[0, 'rgba(255,255,255,0.3)'], [1, 'rgba(255,255,255,0)']]);
+        for (let k = 26; k < w - 6; k += 28) line(c, k, 74, k, 84, 'rgba(60,0,10,0.3)', 2);
+        fillRR(c, -4, 60, 10, 28, 3, '#7e1a2c', '#3d0b14', 1.5);
       }),
     ];
     case 'table4': return [

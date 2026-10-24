@@ -11,7 +11,7 @@ import { clamp, clock12 } from './util.js';
 const BASE = { easy: 0.62, straight: 0.55, hard: 0.38 };
 
 function fillP(sim, s, npc) {
-  return s.replace(/\{p\}/g, sim.s.actors.p.name).replace(/\{n\}/g, npc.short);
+  return sim.fillTime(s.replace(/\{p\}/g, sim.s.actors.p.name).replace(/\{n\}/g, npc.short));
 }
 
 function pick(sim, arr) {

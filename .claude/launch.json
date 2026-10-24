@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "htown",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tools/serve.py", "5791"],
+      "port": 5791
+    }
+  ]
+}

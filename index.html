@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d10" />
+  <title>H-Town Nights</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game">
+    <canvas id="view"></canvas>
+
+    <div id="hud" class="hidden">
+      <div id="hud-tl">
+        <div class="bars" id="bars"></div>
+        <div class="rep" id="rep"></div>
+      </div>
+      <div id="hud-tr">
+        <div id="clock"></div>
+        <div id="money"></div>
+        <div id="tracker"></div>
+      </div>
+      <div id="feed"></div>
+      <div id="toasts"></div>
+      <div id="prompt"></div>
+      <div id="taskbar" class="hidden"><div class="fill"></div><span></span></div>
+      <div id="hands"></div>
+      <div id="topbtns">
+        <button data-panel="bag" title="Bag (I)">🎒<span>Bag</span></button>
+        <button data-panel="people" title="People (P)">👥<span>People</span></button>
+        <button data-panel="me" title="Me (C)">🧍<span>Me</span></button>
+        <button data-panel="board" title="Board (B)">📌<span>Board</span></button>
+        <button data-panel="log" title="Log (L)">📓<span>Log</span></button>
+        <button id="btn-pause" title="Menu (Esc)">☰<span>Menu</span></button>
+      </div>
+    </div>
+
+    <div id="stickzone"></div>
+    <div id="stickbase"><div id="stickknob"></div></div>
+    <div id="touchbtns">
+      <button class="tb big" data-act="interact">E<small>Act</small></button>
+      <button class="tb" data-act="strike">✊<small>Strike</small></button>
+      <button class="tb" data-act="back">↩<small>Back</small></button>
+      <button class="tb sm" data-act="use">R<small>Use</small></button>
+      <button class="tb sm" data-act="drop">Q<small>Drop</small></button>
+      <button class="tb sm" data-act="sprint">⇧<small>Run</small></button>
+    </div>
+
+    <div id="menu" class="hidden"></div>
+    <div id="dialog" class="hidden"></div>
+    <div id="modal" class="hidden"></div>
+    <div id="panel" class="hidden"></div>
+    <div id="pause" class="hidden"></div>
+    <div id="title" class="screen"></div>
+    <div id="create" class="screen hidden"></div>
+    <div id="drag" class="hidden"></div>
+  </div>
+  <noscript>H-Town Nights needs JavaScript.</noscript>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

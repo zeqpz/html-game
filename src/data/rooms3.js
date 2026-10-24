@@ -121,6 +121,35 @@ export const ROOMS3 = {
   },
 };
 
+// Staff rooms: a promotion opens the door in the back of your workplace.
+const BREAK = {
+  diner: { place: 'diner', x: 240, name: 'Starlite · Back office', look: { floor: 'tile', floorTone: '#d8d2c2', wall: 'paint', wallTone: '#b9a27a', trim: '#a3312c', base: '#3a2a20' } },
+  store: { place: 'quikstop', x: 300, name: 'Quik Stop · Stockroom office', look: { floor: 'concrete', floorTone: '#a39f96', wall: 'paint', wallTone: '#c9c2a8', trim: '#2c7a4b', base: '#2c7a4b' } },
+  warehouse: { place: 'warehouse', x: 620, name: 'Warehouse · Break room', look: { floor: 'speckle', floorTone: '#b8b2a4', wall: 'block', wallTone: '#7c868e', trim: '#ffd23f', base: '#2a2d31' } },
+  gymdesk: { place: 'gym', x: 160, name: 'Iron Bayou · Staff room', look: { floor: 'rubber', floorTone: '#3a3d42', wall: 'block', wallTone: '#5d6f80', trim: '#c9b458', base: '#202227' } },
+  taxi: { place: 'depot', x: 245, name: 'Bayou City Cabs · Drivers lounge', look: { floor: 'carpet', floorTone: '#4a4f57', wall: 'paint', wallTone: '#d4c27a', trim: '#1d1d1d', base: '#1d1d1d' } },
+};
+
+for (const job in BREAK) {
+  const B = BREAK[job];
+  const id = `break_${job}`;
+  ROOMS3[id] = {
+    id, kind: 'interior', name: B.name, w: 540, h: 400, wallH: 140, look: B.look, spawn: 'home', staffRoom: job,
+    windows: [], decor: [{ type: 'sign', x: 40, y: 30, w: 110, text: 'STAFF ONLY' }, { type: 'clock', x: 420, y: 60 }],
+    doors: [{ id: 'out', side: 'S', x: 230, w: 80, to: B.place, toDoor: 'staff', label: 'Back to work' }],
+    props: [
+      { id: 'cot', type: 'cot', x: 30, y: 150, w: 120, h: 70, use: 'sleep', label: 'Cot', spots: [{ x: 90, y: 182, pose: 'lie', face: 'down', ax: 90, ay: 238 }] },
+      { id: 'lockers', type: 'lockers', x: 490, y: 160, w: 38, h: 170, use: 'stash', label: 'Your locker', cont: 'locker' },
+      { id: 'coffee', type: 'coffeemaker', x: 300, y: 146, w: 60, h: 30, use: 'freecoffee', label: 'Staff coffee' },
+      { id: 'table', type: 'table4', x: 220, y: 260, w: 84, h: 56, use: 'sit', label: 'Table', table: true,
+        spots: [{ x: 204, y: 288, pose: 'sit', face: 'right' }, { x: 320, y: 288, pose: 'sit', face: 'left' }] },
+    ],
+    containers: { locker: { w: 4, h: 3 } },
+    itemSpawns: [[400, 330]],
+  };
+}
+export const BREAK_DOORS = Object.fromEntries(Object.entries(BREAK).map(([job, B]) => [B.place, { id: 'staff', side: 'N', x: B.x, w: 56, to: `break_${job}`, toDoor: 'out', label: 'Staff room', plate: 'STAFF', staffJob: job }]));
+
 // Furniture you can buy at the pawn shop and place inside your own lease.
 export const FURNITURE = {
   bed: { name: 'Bed', price: 120, w: 130, h: 110, use: 'sleep', spots: [{ dx: 65, dy: 58, pose: 'lie', face: 'down', adx: 65, ady: 130 }] },

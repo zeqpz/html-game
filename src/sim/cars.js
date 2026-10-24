@@ -72,6 +72,29 @@ export class Cars {
     return { x: car.x + fx * M.len * 0.08 + rx * side * (M.wid / 2 + 14), y: car.y + fy * M.len * 0.08 + ry * side * (M.wid / 2 + 14) };
   }
 
+  trunkPoint(car) {
+    const M = MODELS[car.model];
+    return { x: car.x - Math.cos(car.rot) * (M.len / 2 + 14), y: car.y - Math.sin(car.rot) * (M.len / 2 + 14) };
+  }
+
+  // The trunk is a container that stays with the car.
+  trunk(car) {
+    const sim = this.sim;
+    const id = `car:${car.id}:trunk`;
+    if (!sim.s.conts[id]) sim.s.conts[id] = { id, w: MODELS[car.model].bed ? 7 : 6, h: 3, items: [], owner: car.id };
+    return id;
+  }
+
+  nearTrunk(room, x, y, r = 30) {
+    for (const id in this.all) {
+      const c = this.all[id];
+      if (c.stored || c.room !== room) continue;
+      const t = this.trunkPoint(c);
+      if (Math.hypot(t.x - x, t.y - y) < r) return c;
+    }
+    return null;
+  }
+
   nearDoor(room, x, y, r = 30) {
     let best = null;
     let bd = r;

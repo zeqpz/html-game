@@ -58,6 +58,18 @@ export function propParts(prop) {
         texture(c, 4, by, w - 8, h - by - 6, 'grain', 0.12, 'overlay');
       }),
     ];
+    case 'cot': return [
+      part(x, y, w, h, 14, y, (c) => {
+        shadowBlob(c, w / 2 + 3, h / 2 + 5, w * 0.55, h * 0.5, 0.28);
+        for (const lx of [6, w - 10]) for (const ly of [h - 6, 6]) fillRR(c, lx, ly - 2, 4, 10, 1, '#4a5a3a', null);
+        fillRR(c, 0, 0, w, h - 6, 4, '#6b7a4a', '#3a4428', 1.2);
+        fillRR(c, 8, 4, 34, h - 16, 6, '#e8e2d4', 'rgba(0,0,0,0.2)', 1);
+      }),
+      part(x, y, w, h, 0, y + h + 0.5, (c) => {
+        fillRR(c, 44, 4, w - 50, h - 14, 4, '#5a6b8a', '#2c3a52', 1);
+        for (let k = 0; k < 3; k++) line(c, 50, 14 + k * 12, w - 10, 16 + k * 12, 'rgba(0,0,0,0.12)', 2);
+      }),
+    ];
     case 'nightstand': return [part(x, y, w, h, 40, y + h, (c) => {
       box(c, 0, 0, w, h, 26, '#7d5338', '#5f3e29');
       line(c, 4, h - 14, w - 4, h - 14, 'rgba(0,0,0,0.35)', 1);

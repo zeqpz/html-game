@@ -26,7 +26,7 @@ import { clamp, hm, tod, dayOf, inWindow, DAY, clock12, rectDist, rectHit, hashS
 import { NPCS, NPC_LINKS } from '../data/npcs.js';
 import { ROOMS, START_LOOSE, CELL } from '../data/rooms.js';
 import { ITEMS } from '../data/items.js';
-import { BARK } from '../data/lines.js';
+import { BARK, CHAT } from '../data/lines.js';
 import { SHOPS } from '../data/shops.js';
 import { JOBS, FAVORS } from '../data/work.js';
 
@@ -324,6 +324,10 @@ export class Sim {
     if (def && def.hours && !this.isOpen(door.to)) {
       const js = this.s.job.jobs[Object.keys(JOBS).find((k) => JOBS[k].place === door.to)];
       if (!(js && js.hired)) return { ok: false, text: `${def.name} is closed. Opens at ${clock12(hm(def.hours[0]))}.` };
+    }
+    if (door.staffJob) {
+      const js = this.s.job.jobs[door.staffJob];
+      if (!js || !js.hired || js.rank < 1) return { ok: false, text: 'Staff room. Shift leads and up — earn a promotion first.' };
     }
     if (door.lease && door.lease !== 'apt_2b' && !this.s.leases[door.lease]) return { ok: false, lease: door.lease, text: `${LEASE_NAMES[door.lease]} is for lease — $${RENT[door.lease]} a week.` };
     if (door.lease && !this.leaseOk(door.lease)) return { ok: false, text: `The lock won't turn. Rent is overdue — $${this.money.lease(door.lease).rent} in the drop box.` };
@@ -763,7 +767,9 @@ export class Sim {
         best = t;
       }
     };
-    // a car door
+    // a car door, or the trunk
+    const trunk = this.cars.nearTrunk(p.room, p.x, p.y, 30);
+    if (trunk && this.cars.hasKeys(trunk) && !trunk.job) consider(12, { type: 'trunk', id: trunk.id, label: 'Open trunk' });
     const car = this.cars.nearDoor(p.room, p.x, p.y, 34);
     if (car) consider(10, { type: 'car', id: car.id, label: this.cars.hasKeys(car) ? `Get in · ${MODELS[car.model].name}` : car.owner === 'p' ? 'Your car (no keys on you)' : 'Locked car' });
     // loose items under you
@@ -860,6 +866,11 @@ export class Sim {
       this.useProp(this.world.prop(p.room, t.id));
     } else if (t.type === 'car') {
       this.cars.enter(this.s.cars[t.id]);
+    } else if (t.type === 'trunk') {
+      const car = this.s.cars[t.id];
+      const cid = this.cars.trunk(car);
+      this.ui.modal = { type: 'cont', cont: cid, label: `Trunk · ${car.plate}` };
+      this.sfx('door');
     }
   }
 
@@ -928,6 +939,10 @@ export class Sim {
     if (!it) return;
     if (it.job || it.favor) {
       this.toast("That's not yours to use — it's for somebody.", 'warn');
+      return;
+    }
+    if (ITEMS[it.def].kind === 'phone') {
+      this.ui.modal = { type: 'phone' };
       return;
     }
     if (!items.useItem(this, p, it)) this.toast(`Can't use the ${ITEMS[it.def].name.toLowerCase()} like that.`, 'warn');
@@ -1084,6 +1099,13 @@ export class Sim {
         this.ui.modal = { type: 'terminal' };
         break;
       }
+      case 'freecoffee': {
+        p.stats.thirst = clamp(p.stats.thirst + 18, 0, 100);
+        p.stats.mind = clamp(p.stats.mind + 4, 0, 100);
+        this.sfx('drink');
+        this.toast('Free staff coffee. Perks of the job.', 'good');
+        break;
+      }
       case 'dance': {
         if (p.hands && ITEMS[this.s.items[p.hands].def].handsOnly) return this.toast('Put that down first.', 'warn');
         p.act = 'dance';
@@ -1188,6 +1210,7 @@ export class Sim {
       }
       case 'arrange_cancel': this.ui.arrange = null; return;
       case 'collect_deliver': return this.cmdResult(this.deliverCollect(a.npc));
+      case 'call': return this.cmdResult(this.call(a.id));
       case 'pawn_sell': return this.cmdResult(this.pawnSell(a.npc, a.uid));
       case 'pawn_buy': return this.cmdResult(this.pawnBuy(a.npc, a.item));
       case 'sleep': return this.sleep(a.hours);
@@ -1201,6 +1224,10 @@ export class Sim {
         const it = this.s.items[a.uid];
         if (!it) return;
         if (it.job || it.favor) return this.toast("That's not yours to use — it's for somebody.", 'warn');
+        if (ITEMS[it.def].kind === 'phone') {
+          this.ui.modal = { type: 'phone' };
+          return;
+        }
         if (!items.useItem(this, p, it)) this.toast("Can't use that here.", 'warn');
         return;
       }
@@ -1436,6 +1463,23 @@ export class Sim {
     this.log('Earl rolls your car out onto the apron.');
     this.wantSave = true;
     return { ok: true, text: 'Your car is out front.' };
+  }
+
+  // A phone call: a normal conversation, once a day per person.
+  call(id) {
+    const npc = this.s.actors[id];
+    if (!npc) return { ok: false, text: 'No answer.' };
+    const day = Math.floor(this.s.t / DAY);
+    this.s.flags.calls = this.s.flags.calls || {};
+    if (this.s.flags.calls[id] === day) return { ok: false, text: `You already talked to ${npc.short} today.` };
+    if (npc.act === 'sleep' || npc.downUntil) return { ok: false, text: 'Straight to voicemail.' };
+    this.s.flags.calls[id] = day;
+    adjustRel(this, npc, 'p', 3);
+    this.player.stats.mind = clamp(this.player.stats.mind + 5, 0, 100);
+    const pair = CHAT[Math.floor(this.rng.next() * CHAT.length)];
+    this.log(`You call ${npc.short}. "${pair[0]}" — "${pair[1]}" Good to hear a friendly voice.`, 'good');
+    this.sfx('tick');
+    return { ok: true, text: `Talked to ${npc.short}.` };
   }
 
   dance(p, dt) {

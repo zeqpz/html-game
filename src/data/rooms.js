@@ -10,7 +10,7 @@
 // Lots are 540 x 540 and use lot-relative coordinates.
 
 import { ROOMS2 } from './rooms2.js';
-import { ROOMS3, DOORS3 } from './rooms3.js';
+import { ROOMS3, DOORS3, BREAK_DOORS } from './rooms3.js';
 
 export const CELL = 1400;
 
@@ -487,6 +487,15 @@ for (const st in DOORS3) {
     lot.feat = (lot.feat || []).filter((f) => f.type !== 'soon' && f.type !== 'forlease');
   }
 }
+
+// promotions open a staff room in the back of the workplace
+for (const place in BREAK_DOORS) {
+  const def = ROOMS[place];
+  def.doors = [...def.doors, BREAK_DOORS[place]];
+  def.decor = (def.decor || []).filter((d) => d.type !== 'restroom');
+}
+ROOMS.gym.props = ROOMS.gym.props.map((p) => (p.id === 'board' ? { ...p, x: 810 } : p));
+ROOMS.depot.decor = ROOMS.depot.decor.map((d) => (d.type === 'citymap' ? { ...d, w: 170 } : d));
 
 // Items placed loose when a new game starts (slice: three on the floor + cash).
 export const START_LOOSE = [

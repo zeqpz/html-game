@@ -136,6 +136,7 @@ export class View {
     let zoom = Math.min(H / fitH, W / fitW);
     zoom = clamp(street ? zoom : Math.max(zoom, Math.min(H / 420, 1.25)), 0.55, 2.6);
     if (W < 700) zoom = Math.max(zoom, street ? 0.8 : 0.85);
+    if (H > W * 1.2) zoom = clamp(W / (street ? 600 : 560), 0.62, 1.2); // phone held upright: see more
     if (car) zoom *= 1 - 0.3 * Math.min(1, sim.cars.speed(car) / 520);
     if (this.cam.room !== room.id && !(car && this.cam.room)) {
       this.cam.x = p.x;

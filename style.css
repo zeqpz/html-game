@@ -326,3 +326,12 @@ body.touch #drivehud { bottom: auto; top: 64px; }
 .crewbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; font-size: 13px; font-weight: 700; }
 .crewbar small { color: var(--dim); font-weight: 500; }
 .meter.heat { background: linear-gradient(90deg, #5d5868, #ffb36b 50%, #ff3b30); }
+@media (max-width: 560px) {
+  body.touch #topbtns, #topbtns { top: 170px; bottom: auto; left: auto; right: max(8px, env(safe-area-inset-right)); transform: none; flex-direction: column; }
+  #topbtns button { padding: 6px; }
+  #topbtns button span { display: none; }
+  #hud-tr { max-width: 60vw; }
+  .bar { grid-template-columns: 14px 64px 22px; }
+  #feed { bottom: 46%; max-width: 75vw; }
+  #dialog { bottom: 8px; }
+}

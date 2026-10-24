@@ -579,6 +579,16 @@ export class UI {
         el('span', {}, 'Week range'), el('b', {}, `$${Math.round(lo + 4)} – $${Math.round(hi - 4)}`),
         el('span', {}, 'You hold'), el('b', {}, `${held} coin`)));
       card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('coins_sell') }, held ? `Sell ${held} coin · ~$${Math.round(held * now)}` : 'No coin to sell'));
+    } else if (m.type === 'phone') {
+      card.append(el('h2', {}, 'Phone'), el('p', { class: 'sub' }, 'A cracked screen and a few numbers that matter.'));
+      const contacts = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && a.rel.p && a.rel.p.met && (a.rel.p.v >= 25 || ['crew', 'boss'].includes(a.rel.p.tag)));
+      if (!contacts.length) card.append(el('p', { class: 'sub' }, 'Nobody likes you enough to pick up yet.'));
+      for (const a of contacts) {
+        const tag = displayTag(a, 'p');
+        card.append(el('div', { class: 'licrow' }, el('div', {}, el('b', {}, a.name), el('small', { style: `color:${TAG_COLOR[tag]}` }, tag)), el('button', { class: 'hot', onclick: () => sim.cmd('call', { id: a.id }) }, 'Call')));
+      }
+      const wx = sim.weatherAt(sim.s.t - (sim.s.t % 1440) + 15 * 60);
+      card.append(el('div', { class: 'kv' }, el('span', {}, 'Bank'), el('b', {}, money(sim.player.bank)), el('span', {}, 'Forecast'), el('b', {}, wx.rain > 0.2 ? 'Afternoon storms' : wx.cloud > 0.6 ? 'Cloudy and muggy' : 'Hot and sticky')));
     } else if (m.type === 'lease') {
       card.append(el('h2', {}, LEASE_NAMES[m.lease]), el('p', { class: 'sub' }, m.lease === 'loft' ? 'Exposed brick, tall windows, empty floor. Furnish it yourself.' : 'Concrete box, two grow tables, shelves, power and a sink.'));
       card.append(el('div', { class: 'kv' }, el('span', {}, 'Rent'), el('b', {}, `$${RENT[m.lease]} a week`), el('span', {}, 'Due'), el('b', {}, 'Sunday nights'), el('span', {}, 'Cash on you'), el('b', {}, money(cashOnBody(sim, sim.player)))));
@@ -1156,14 +1166,18 @@ export class UI {
 }
 
 const HELP = `
-<p><b>H-Town Nights</b> is a life sim. No missions, no win screen. Eat, sleep, work, talk, fight and build a name. People keep a memory of what you did — and they bring it up.</p>
+<p><b>H-Town Nights</b> is a life sim. No missions, no win screen. Eat, sleep, work, drive, rent, talk, fight and build a name. People keep a memory of what you did — and they bring it up.</p>
 <ul>
 <li><kbd>WASD</kbd>/<kbd>arrows</kbd> move · <kbd>Shift</kbd> run · <kbd>E</kbd> act / talk / pick up</li>
-<li><kbd>F</kbd> strike · <kbd>Space</kbd> back off · <kbd>R</kbd> use what you hold · <kbd>Q</kbd> drop it</li>
+<li><kbd>F</kbd> strike (or fire) · <kbd>Space</kbd> back off · <kbd>R</kbd> use what you hold · <kbd>Q</kbd> drop it</li>
 <li><kbd>I</kbd> bag · <kbd>P</kbd> people · <kbd>C</kbd> you · <kbd>B</kbd> board · <kbd>L</kbd> log · <kbd>Esc</kbd> menu</li>
+<li>Driving: <kbd>W</kbd>/<kbd>S</kbd> gas and brake · <kbd>A</kbd>/<kbd>D</kbd> steer · <kbd>Space</kbd> handbrake · <kbd>E</kbd> get out · <kbd>R</kbd> radio</li>
 <li>Touch: left thumb is the stick, buttons on the right.</li>
 </ul>
-<p><b>Talk</b> in three tones: <i>Easy</i>, <i>Straight</i>, <i>Hard</i>. Intellect and reputation shift the odds. Straight talk with someone who likes you can turn into a favor. A hard line can start a fight.</p>
-<p><b>Work</b>: read the help-wanted board at the Starlite and ask Rosa for work. A shift is real tasks with a deadline.</p>
-<p><b>Money</b> is an item. If you drop, everything you carry lands on the floor where you fell — and somebody might pick it up.</p>
-<p><b>Sleep</b> in your bed at Bayou Arms. Hunger and thirst drain health and mind. If your mind hits the floor you lose control for a few seconds.</p>`;
+<p><b>Talk</b> in three tones: <i>Easy</i>, <i>Straight</i>, <i>Hard</i>. Intellect and reputation shift the odds. Straight talk with someone who likes you can turn into a favor. A hard line can start a fight — or make someone pay up.</p>
+<p><b>Work</b> is a place: read the boards, ask the boss. Diner, Quik Stop, the warehouse, the job site, the gym desk, St. Ann's, bank courier, street sweeping, and cabs once you're licensed. Hours lead to promotions, more pay, and a staff room.</p>
+<p><b>Money</b> is an item. If you drop, everything you carry lands where you fell. The bank keeps what you deposit (weekly cap). Rent is due Sunday nights — miss it and the door won't open.</p>
+<p><b>Paper</b>: driver and firearm permits at the 5th Precinct. Your old sedan is parked outside Bayou Arms — it won't start until you're licensed.</p>
+<p><b>The other economy</b>: lease a storage unit, grow bayou bloom, run a mining rig, sell at the bank terminal or to someone who remembers the deal. It all brings heat. High heat gets you stopped and searched.</p>
+<p><b>Crews</b>: the Cottonmouths and the Canal Kings. Stay solo, get asked, or ask. Insult a rival in public and the street remembers.</p>
+<p><b>Home</b>: Harbor Pawn & Thrift delivers furniture to anywhere you lease. Use the Home button inside to arrange it.</p>`;

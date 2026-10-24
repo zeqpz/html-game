@@ -35,13 +35,13 @@ const goTo = (room, x, y) => {
 const npc = (id) => sim.s.actors[id];
 
 console.log('Rooms + doors');
-ok(sim.world.nextDoor('apt_2b', 'diner')?.to === 'st_pecan', 'apartment routes to the diner through the street');
+ok(sim.world.nextDoor('apt_2b', 'diner')?.to === 'bayou_hall' && sim.world.hops('apt_2b', 'diner') === 3, 'apartment routes to the diner via the hallway and street');
 goTo('apt_2b', 645, 470);
 run(0.2);
 p.x = 645;
 p.y = 495;
 run(0.2);
-ok(p.room === 'st_pecan', `walking into the apartment door leads outside (now ${p.room})`);
+ok(p.room === 'bayou_hall', `walking into the apartment door leads to the hallway (now ${p.room})`);
 
 console.log('Diner: buy and eat');
 setTime('09:00');
@@ -102,16 +102,20 @@ ok(r.ok && sim.s.job.jobs.diner.hired, `hired: "${r.text}"`);
 r = sim.work.askForWork(rosa);
 ok(r.ok && sim.work.onShift(), `shift started: "${r.text}"`);
 const cashS = cashOnBody(sim, p);
-let guard = 0;
-while (sim.work.onShift() && guard++ < 40) {
-  const t = sim.work.currentTask();
-  if (t.kind === 'mop') {
-    p.x = t.x;
-    p.y = t.y;
-    sim.work.shiftInteract(null, t.x, t.y);
-  } else sim.work.shiftInteract(t.prop, p.x, p.y);
-  run(3.5);
-}
+const workShift = () => {
+  let guard = 0;
+  while (sim.work.onShift() && guard++ < 60) {
+    const t = sim.work.currentTask();
+    if (t.room !== p.room) goTo(t.room, 400, 400);
+    if (t.x !== undefined) {
+      p.x = t.x;
+      p.y = t.y;
+      sim.work.shiftInteract(null, t.x, t.y);
+    } else sim.work.shiftInteract(t.prop, p.x, p.y);
+    run(3.5);
+  }
+};
+workShift();
 ok(!sim.work.onShift() && cashOnBody(sim, p) > cashS, `shift paid: $${cashS} -> $${cashOnBody(sim, p)}`);
 ok(rosa.mem.some((m) => m.type === 'shift'), 'Rosa remembers the finished shift');
 
@@ -129,11 +133,50 @@ let g2 = 0;
 while (!p.downUntil && g2++ < 900) run(0.1);
 ok(!!p.downUntil, 'player went down');
 const fell = sim.s.flags.fellAt;
-const loose = sim.s.rooms.gym.items.map((u) => sim.s.items[u]).filter((it) => it.def === 'cash');
+const loose = sim.s.rooms.gym.items.map((u) => sim.s.items[u]).filter((it) => it.def === 'cash' && it.lastOwner === 'p');
 ok(loose.length && loose[0].n === cashBefore, `cash wad on the gym floor ($${loose[0]?.n}, had $${cashBefore})`);
 run(4);
 ok(!p.downUntil && cashOnBody(sim, p) === 0, `woke up elsewhere (${p.room}) with empty pockets`);
 ok(dre.mem.length >= 0 && relV(dre, 'p') <= 0, 'Dre remembers the fight');
+
+console.log('Bank, rent, courier, hospital');
+setTime('10:00');
+goTo('bank', 410, 420);
+run(3);
+const carmen = npc('carmen');
+ok(carmen.loaded && sim.onDuty(carmen), `Carmen is at the teller window (${carmen.room}, ${carmen.act}, loaded=${carmen.loaded}, fight=${carmen.fightWith}, down=${carmen.downUntil})`);
+sim.items.addCash(sim, p, 300);
+const before = p.bank;
+sim.cmd('deposit', { amt: 250, where: 'teller' });
+ok(p.bank === before + 250 && p.bankLog.length > 0, `deposit lands in the bank ($${p.bank}) with a log entry`);
+sim.cmd('deposit', { amt: 900, where: 'teller' });
+ok(p.weekDeposits <= 1000, `weekly deposit cap holds (${p.weekDeposits})`);
+sim.cmd('withdraw', { amt: 40, where: 'atm' });
+ok(cashOnBody(sim, p) >= 40, 'withdraw puts cash back in your pocket');
+p.stats.intellect = 60;
+p.stats.reputation = 50;
+let rr = sim.work.askForWork(carmen);
+rr = sim.work.askForWork(carmen);
+ok(sim.work.onShift() && sim.s.job.shift.job === 'courier', `courier shift started: "${rr.text}"`);
+const crossRooms = new Set(sim.s.job.shift.tasks.map((t) => t.room));
+ok(crossRooms.size > 1, `courier tasks cross town: ${[...crossRooms].join(', ')}`);
+const cashC = cashOnBody(sim, p);
+workShift();
+ok(!sim.work.onShift() && cashOnBody(sim, p) > cashC, `courier shift paid ($${cashC} -> $${cashOnBody(sim, p)})`);
+const L = sim.money.lease('apt_2b');
+sim.s.t = L.due + 5;
+run(1);
+ok(L.overdue, 'rent goes overdue after Sunday night');
+const hallDoor = sim.world.door('bayou_hall', '2B');
+ok(!sim.canEnter(hallDoor).ok, `locked out: "${sim.canEnter(hallDoor).text}"`);
+sim.items.addCash(sim, p, 200);
+sim.cmd('pay_rent', { lease: 'apt_2b' });
+ok(!L.overdue && sim.canEnter(hallDoor).ok, 'paying rent unlocks the door');
+p.stats.health = 1;
+goTo('st_main', 700, 570);
+sim.playerDown(null);
+run(4);
+ok(p.room === 'hospital', `knocked out on the street, woke up in ${p.room}`);
 
 console.log('Save / load');
 const blob = sim.serialize();

@@ -7,6 +7,7 @@ export const ITEMS = {
   pipe: { name: 'Pipe', kind: 'weapon', w: 1, h: 3, wt: 2.2, handsOnly: true, dmg: 15, reach: 12, visible: true, value: 4, desc: 'A length of galvanized pipe. Heavy and obvious.' },
   bottle: { name: 'Bottle', kind: 'weapon', w: 1, h: 2, wt: 0.5, dmg: 9, reach: 4, breaks: 0.35, value: 0, desc: 'An empty glass bottle.' },
   bat: { name: 'Bat', kind: 'weapon', w: 1, h: 3, wt: 1.0, handsOnly: true, dmg: 17, reach: 16, visible: true, value: 25, desc: 'Aluminum softball bat.' },
+  dumbbell: { name: 'Dumbbell', kind: 'weapon', w: 1, h: 1, wt: 9, handsOnly: true, dmg: 13, reach: 2, value: 15, desc: 'A 20-pound dumbbell. Iron Bayou Gym stenciled on it.' },
   flashlight: { name: 'Flashlight', kind: 'tool', w: 1, h: 2, wt: 0.4, dmg: 6, light: true, value: 12, desc: 'A heavy-duty flashlight. Lights the way at night.' },
   broom: { name: 'Broom', kind: 'tool', w: 1, h: 3, wt: 0.8, handsOnly: true, dmg: 5, reach: 18, tool: 'sweep', value: 6, desc: 'A push broom.' },
   wrench: { name: 'Wrench', kind: 'tool', w: 1, h: 2, wt: 0.9, dmg: 11, reach: 4, value: 10, desc: 'Adjustable wrench.' },
@@ -30,6 +31,12 @@ export const ITEMS = {
 
   book: { name: 'Paperback', kind: 'book', w: 1, h: 2, wt: 0.3, intellect: 1.4, mind: 7, value: 5, desc: 'A dog-eared paperback. Reading takes a minute.' },
   manual: { name: 'Driver handbook', kind: 'book', w: 1, h: 2, wt: 0.3, intellect: 2.0, mind: 2, value: 8, desc: 'State driver handbook. Dry, but it helps on the test.' },
+
+  // job carry items: they belong to the job, not to you
+  envelope: { name: 'Bank envelope', kind: 'job', w: 1, h: 1, wt: 0.2, value: 0, desc: 'Sealed. Signed for. Don\'t lose it.' },
+  box: { name: 'Box of stock', kind: 'job', w: 2, h: 2, wt: 4, handsOnly: true, value: 0, desc: 'Cases of soda and chips.' },
+  linen: { name: 'Clean linens', kind: 'job', w: 2, h: 1, wt: 1.5, handsOnly: true, value: 0, desc: 'Folded sheets, still warm.' },
+  plates: { name: 'Weight plate', kind: 'job', w: 1, h: 1, wt: 5, handsOnly: true, value: 0, desc: 'A 20-pound plate somebody left on the floor.' },
 };
 
 // What a room can spawn at dawn. Weighted.
@@ -39,6 +46,10 @@ export const SPAWN_TABLES = {
   diner: [['coffee', 1], ['bottle', 1], ['book', 1], ['cash', 1]],
   gym: [['water', 3], ['bottle', 1], ['cash', 1], ['bandage', 1]],
   home: [['book', 2], ['snack', 2], ['soda', 2], ['water', 1]],
+  store: [['snack', 2], ['bottle', 1], ['cash', 1]],
+  bank: [['cash', 1], ['book', 1]],
+  clinic: [['bandage', 2], ['water', 1], ['book', 1]],
+  precinct: [['coffee', 2], ['book', 1]],
 };
 
 // Cash wads that spawn loose are small.

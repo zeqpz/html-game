@@ -3,6 +3,8 @@
 
 import { PERSONALITIES } from '../data/personalities.js';
 import { FAVORS } from '../data/work.js';
+import { ROUTES } from '../data/npcs.js';
+import { CELL } from '../data/rooms.js';
 import { CHAT } from '../data/lines.js';
 import { ITEMS } from '../data/items.js';
 import { scratch, schedNow, walkSpeed, sprintMul, moveBody, faceToward, npcNeeds, staminaTick } from './actors.js';
@@ -29,6 +31,14 @@ export class AI {
       if (g) return g;
     }
     const sc = schedNow(npc, s.t);
+    if (sc.act === 'patrol') {
+      const route = ROUTES[sc.target] || [];
+      if (route.length) {
+        const i = (npc.patrolI || 0) % route.length;
+        const [room, x, y, pause] = route[i];
+        return { key: `patrol:${i}`, room, act: 'patrol', x, y, pause: pause || 5 };
+      }
+    }
     const room = sc.room;
     // staff can't work a closed or empty place; eaters skip a closed diner
     if (sc.act === 'eat' && !sim.isOpen(room)) return { key: 'eat-closed', room: npc.home, act: 'rest' };
@@ -42,6 +52,7 @@ export class AI {
     const r = sim.world.room(goal.room);
     if (!r || r.kind === 'offmap') return null;
     const rng = sim.rng;
+    if (goal.act === 'patrol') return { x: goal.x, y: goal.y };
     const free = (p, i) => !sim.spotTaken(goal.room, p.id, i, npc.id);
     const pickSpot = (props) => {
       const opts = [];
@@ -90,7 +101,7 @@ export class AI {
       const npc = sim.s.actors[id];
       if (npc.kind !== 'npc' || !npc.loaded) continue;
       const _ = scratch(npc);
-      _.thinkT = (_.thinkT ?? Math.random() * THINK) - dt;
+      _.thinkT = (_.thinkT ?? sim.rng.next() * THINK) - dt;
       if (_.thinkT <= 0) {
         _.thinkT = THINK;
         this.think(npc);
@@ -160,6 +171,15 @@ export class AI {
       _.place = this.placeFor(npc, g);
       _.path = null;
       _.arrived = false;
+    }
+    // patrols pause at each stop, then move on
+    if (g.act === 'patrol' && _.arrived) {
+      if (!_.pauseUntil) _.pauseUntil = sim.time + g.pause;
+      if (sim.time > _.pauseUntil) {
+        _.pauseUntil = 0;
+        npc.patrolI = (npc.patrolI || 0) + 1;
+        if (sim.rng.chance(0.3)) sim.say(npc, 'copHello');
+      }
     }
     // loiterers drift around their hangout now and then
     if (_.arrived && !npc.spot && (g.act === 'hang' || g.act === 'workout' || g.act === 'eat' || g.act === 'sit')) {
@@ -362,14 +382,17 @@ export class AI {
         moveBody(sim, npc, 0, 0, speed, dt);
         return;
       }
-      const tx = door.edge ? door.at.x : door.zone.x + door.zone.w / 2;
-      const ty = door.edge ? door.at.y : door.zone.y + door.zone.h / 2;
+      // street edges: walk past the boundary and hop to the neighbouring block
+      const push = { e: [40, 0], w: [-40, 0], n: [0, -40], s: [0, 40] }[door.edge] || [0, 0];
+      const tx = door.edge ? door.at.x + push[0] : door.zone.x + door.zone.w / 2;
+      const ty = door.edge ? door.at.y + push[1] : door.zone.y + door.zone.h / 2;
       const near = door.edge ? false : rectHit(door.zone, npc.x, npc.y) || Math.hypot(tx - npc.x, ty - npc.y) < 10;
       if (near) {
         sim.passDoor(npc, door);
         return;
       }
       this.steer(npc, tx, ty, dt, speed);
+      if (door.edge) this.edgeCross(npc);
       return;
     }
     const pl = _.place;
@@ -417,6 +440,33 @@ export class AI {
       return;
     }
     this.steer(npc, tx, ty, dt, speed);
+  }
+
+  edgeCross(npc) {
+    const sim = this.sim;
+    const r = sim.world.room(npc.room);
+    if (!r || r.kind !== 'street') return;
+    let to = null;
+    let nx = npc.x;
+    let ny = npc.y;
+    if (npc.x < -2 && r.edges.w) { to = r.edges.w; nx += CELL; }
+    else if (npc.x > CELL + 2 && r.edges.e) { to = r.edges.e; nx -= CELL; }
+    else if (npc.y < -2 && r.edges.n) { to = r.edges.n; ny += CELL; }
+    else if (npc.y > CELL + 2 && r.edges.s) { to = r.edges.s; ny -= CELL; }
+    if (!to) return;
+    if (sim.loaded.has(to)) {
+      npc.room = to;
+      npc.x = nx;
+      npc.y = ny;
+      const _ = scratch(npc);
+      _.path = null;
+      _.place = null;
+      _.arrived = false;
+    } else {
+      this.dematerialize(npc);
+      npc.saved = null;
+      npc.room = to;
+    }
   }
 
   steer(npc, tx, ty, dt, speed) {
@@ -481,6 +531,14 @@ export class AI {
         }
       } else {
         npc.act = ({ sleep: 'sleep', rest: 'rest', eat: 'eat', work: 'work', workout: 'lift' })[goal.act] || 'idle';
+        // off-screen patrols still make their rounds
+        if (goal.act === 'patrol') {
+          if (!npc.patrolAt) npc.patrolAt = s.t + 4;
+          if (s.t >= npc.patrolAt) {
+            npc.patrolAt = 0;
+            npc.patrolI = (npc.patrolI || 0) + 1;
+          }
+        }
       }
     }
   }

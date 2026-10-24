@@ -22,8 +22,7 @@ export const ROOMS = {
         kind: 'building', name: 'Bayou Arms', style: 'brick', rect: [30, 60, 470, 400], floors: 2,
         sign: 'BAYOU ARMS', signColor: '#f1e3c2',
         doors: [
-          { id: 'bayou_2b', side: 'S', at: 150, to: 'apt_2b', toDoor: 'out', label: 'Bayou Arms · Unit 2B' },
-          { id: 'bayou_1a', side: 'S', at: 330, to: 'home_delphine', toDoor: 'door', label: 'Unit 1A', npcOnly: true },
+          { id: 'bayou', side: 'S', at: 150, to: 'bayou_hall', toDoor: 'out', label: 'Bayou Arms' },
         ],
         feat: [
           { type: 'lawn', x: 30, y: 460, w: 470, h: 80 },
@@ -106,7 +105,7 @@ export const ROOMS = {
       { type: 'clock', x: 486, y: 64 },
       { type: 'shelfwall', x: 560, y: 54, w: 120 },
     ],
-    doors: [{ id: 'out', side: 'S', x: 610, w: 70, to: 'st_pecan', toDoor: 'bayou_2b', label: 'Out to Pecan St' }],
+    doors: [{ id: 'out', side: 'S', x: 610, w: 70, to: 'bayou_hall', toDoor: '2B', label: 'Hallway' }],
     props: [
       { id: 'bed', type: 'bed', x: 28, y: 152, w: 138, h: 116, use: 'sleep', label: 'Bed', spots: [{ x: 97, y: 212, pose: 'lie', face: 'down', ax: 97, ay: 286 }] },
       { id: 'nightstand', type: 'nightstand', x: 172, y: 154, w: 40, h: 34, use: 'radio', label: 'Radio' },
@@ -203,19 +202,277 @@ export const ROOMS = {
 
   // ---------------------------------------------------------------- off-map homes
   // NPC homes that are not visitable yet. They have no geometry; NPCs there are abstract.
-  home_delphine: { id: 'home_delphine', kind: 'offmap', name: 'Unit 1A', doors: [{ id: 'door', to: 'st_pecan', toDoor: 'bayou_1a' }] },
+  // Homes of people who live in Bayou Arms open off the hallway.
+  home_delphine: { id: 'home_delphine', kind: 'offmap', name: 'Unit 1A', doors: [{ id: 'door', to: 'bayou_hall', toDoor: '1A' }] },
+  home_boudreaux: { id: 'home_boudreaux', kind: 'offmap', name: 'Unit 1B', doors: [{ id: 'door', to: 'bayou_hall', toDoor: '1B' }] },
+  vacant_2a: { id: 'vacant_2a', kind: 'offmap', name: 'Unit 2A', doors: [{ id: 'door', to: 'bayou_hall', toDoor: '2A' }] },
+  // Everyone else rides the bus home. Their homes hang off "elsewhere"
+  // (generated in world.js from the cast list).
   elsewhere: {
     id: 'elsewhere', kind: 'offmap', name: 'Across town',
     doors: [
       { id: 'bus', to: 'st_pecan', toDoor: 'bus' },
-      { id: 'rosa', to: 'home_rosa', toDoor: 'door' },
-      { id: 'dre', to: 'home_dre', toDoor: 'door' },
-      { id: 'javi', to: 'home_javi', toDoor: 'door' },
+      { id: 'bus2', to: 'st_harbor', toDoor: 'bus' },
     ],
   },
-  home_rosa: { id: 'home_rosa', kind: 'offmap', name: "Rosa's place", doors: [{ id: 'door', to: 'elsewhere', toDoor: 'rosa' }] },
-  home_dre: { id: 'home_dre', kind: 'offmap', name: "Dre's place", doors: [{ id: 'door', to: 'elsewhere', toDoor: 'dre' }] },
-  home_javi: { id: 'home_javi', kind: 'offmap', name: "Javi's place", doors: [{ id: 'door', to: 'elsewhere', toDoor: 'javi' }] },
+
+  // ================================================================ widening, stage 1
+  bayou_hall: {
+    id: 'bayou_hall', kind: 'interior', name: 'Bayou Arms · Hallway', w: 760, h: 420, wallH: 156,
+    look: { floor: 'linoleum', floorTone: '#c9bfa6', floorTone2: '#8f7f62', wall: 'paint', wallTone: '#8fa287', trim: '#ece4cf', base: '#4b3a2a' },
+    spawn: 'home',
+    windows: [],
+    decor: [
+      { type: 'mailwall', x: 280, y: 52, w: 64 },
+      { type: 'stairs', x: 372, y: 14, w: 104 },
+      { type: 'sign', x: 286, y: 30, text: 'QUIET HOURS 12–6 AM', w: 56 },
+      { type: 'runner', x: 30, y: 168, w: 700, h: 40, tone: '#6b3b3b' },
+    ],
+    doors: [
+      { id: 'out', side: 'S', x: 340, w: 80, to: 'st_pecan', toDoor: 'bayou', label: 'Out to Pecan St' },
+      { id: '1A', side: 'N', x: 54, w: 56, to: 'home_delphine', toDoor: 'door', label: '1A', npcOnly: true, plate: '1A' },
+      { id: '1B', side: 'N', x: 176, w: 56, to: 'home_boudreaux', toDoor: 'door', label: '1B · Manager', npcOnly: true, plate: '1B' },
+      { id: '2A', side: 'N', x: 518, w: 56, to: 'vacant_2a', toDoor: 'door', label: '2A', npcOnly: true, plate: '2A', vacant: true },
+      { id: '2B', side: 'N', x: 646, w: 56, to: 'apt_2b', toDoor: 'out', label: 'Unit 2B · home', plate: '2B', lease: 'apt_2b' },
+    ],
+    props: [
+      { id: 'rentbox', type: 'rentbox', x: 296, y: 150, w: 32, h: 10, solid: false, wall: true, use: 'rent', label: 'Rent drop box' },
+      { id: 'bench', type: 'gymbench', x: 40, y: 336, w: 130, h: 24, use: 'sit', label: 'Bench',
+        spots: [{ x: 78, y: 344, pose: 'sit', face: 'up', ax: 78, ay: 322 }, { x: 132, y: 344, pose: 'sit', face: 'up', ax: 132, ay: 322 }] },
+      { id: 'plant', type: 'plant', x: 690, y: 340, w: 34, h: 30 },
+      { id: 'plant2', type: 'plant', x: 250, y: 352, w: 30, h: 26 },
+    ],
+    hangouts: { lobby: [210, 300, 60] },
+    itemSpawns: [[560, 330], [200, 260]],
+  },
+
+  quikstop: {
+    id: 'quikstop', kind: 'interior', name: 'Quik Stop', w: 780, h: 500, wallH: 150,
+    look: { floor: 'tile', floorTone: '#dedcd2', wall: 'paint', wallTone: '#e3dccb', trim: '#2c7a4b', base: '#2c7a4b', stripe: '#2c7a4b' },
+    hours: ['06:00', '23:59'], spawn: 'store', staff: ['tran'],
+    windows: [{ x: 470, y: 34, w: 150, h: 80, blinds: false }],
+    decor: [
+      { type: 'storesign', x: 40, y: 30, w: 160, text: 'COLD DRINKS · SNACKS · ICE' },
+      { type: 'clock', x: 680, y: 56 },
+    ],
+    doors: [{ id: 'out', side: 'S', x: 120, w: 80, to: 'st_main', toDoor: 'store', label: 'Out to Pecan St' }],
+    props: [
+      { id: 'counter', type: 'shopcounter', x: 260, y: 360, w: 200, h: 40, use: 'buy', label: 'Register', staff: { x: 312, y: 344, face: 'down' } },
+      { id: 'shelf1', type: 'shelf', x: 230, y: 196, w: 330, h: 34, use: 'job', label: 'Shelf', shelf: true },
+      { id: 'shelf2', type: 'shelf', x: 230, y: 276, w: 330, h: 34, use: 'job', label: 'Shelf', shelf: true },
+      { id: 'cooler', type: 'cooler', x: 630, y: 150, w: 130, h: 36, use: 'job', label: 'Drink cooler', shelf: true },
+      { id: 'magrack', type: 'magrack', x: 30, y: 154, w: 90, h: 30, use: 'job', label: 'Magazine rack', shelf: true },
+      { id: 'stock', type: 'staffdoor', x: 140, y: 148, w: 58, h: 8, solid: false, wall: true, use: 'job', label: 'Stockroom' },
+      { id: 'icechest', type: 'icechest', x: 660, y: 420, w: 80, h: 40 },
+      { id: 'board', type: 'board', x: 220, y: 150, w: 48, h: 8, solid: false, wall: true, use: 'posting', label: 'Help wanted', job: 'store' },
+    ],
+    itemSpawns: [[620, 360], [180, 440], [600, 250]],
+  },
+
+  bank: {
+    id: 'bank', kind: 'interior', name: 'Gulf Coast Savings', w: 820, h: 520, wallH: 170,
+    look: { floor: 'marble', floorTone: '#ddd6c8', floorTone2: '#b9ae9a', wall: 'wood', wallTone: '#6b4a33', trim: '#d8c08a', base: '#3a2718' },
+    hours: ['08:00', '18:00'], spawn: 'bank', staff: ['carmen'],
+    windows: [],
+    decor: [
+      { type: 'vault', x: 30, y: 26, w: 140 },
+      { type: 'banksign', x: 300, y: 30, w: 220, text: 'GULF COAST SAVINGS' },
+      { type: 'clock', x: 620, y: 66 },
+      { type: 'carpet', x: 230, y: 290, w: 360, h: 170, tone: '#2c4a6b' },
+    ],
+    doors: [{ id: 'out', side: 'S', x: 370, w: 80, to: 'st_main', toDoor: 'bank', label: 'Out to Pecan St' }],
+    props: [
+      { id: 'teller', type: 'tellercounter', x: 200, y: 232, w: 420, h: 44, use: 'bank', label: 'Teller window', staff: { x: 320, y: 216, face: 'down' } },
+      { id: 'rope', type: 'rope', x: 300, y: 320, w: 220, h: 10, solid: false },
+      { id: 'chairs', type: 'chairs', x: 40, y: 420, w: 150, h: 26, use: 'sit', label: 'Chairs',
+        spots: [{ x: 66, y: 428, pose: 'sit', face: 'up', ax: 66, ay: 404 }, { x: 115, y: 428, pose: 'sit', face: 'up', ax: 115, ay: 404 }, { x: 164, y: 428, pose: 'sit', face: 'up', ax: 164, ay: 404 }] },
+      { id: 'plantL', type: 'plant', x: 186, y: 182, w: 30, h: 26 },
+      { id: 'plantR', type: 'plant', x: 630, y: 182, w: 30, h: 26 },
+      { id: 'desk', type: 'officedesk', x: 640, y: 370, w: 130, h: 50 },
+      { id: 'kiosk', type: 'kiosk', x: 720, y: 176, w: 46, h: 30, use: 'terminal', label: 'Market terminal' },
+      { id: 'board', type: 'board', x: 220, y: 150, w: 48, h: 8, solid: false, wall: true, use: 'posting', label: 'Notices', job: 'courier' },
+    ],
+    itemSpawns: [[700, 470], [120, 330]],
+  },
+
+  atm: {
+    id: 'atm', kind: 'interior', name: 'ATM Alcove', w: 360, h: 320, wallH: 140,
+    look: { floor: 'concrete', floorTone: '#8e8b84', wall: 'block', wallTone: '#7c828a', trim: '#3b6fa0', base: '#2a2d31' },
+    spawn: 'street',
+    windows: [],
+    decor: [{ type: 'graffiti', x: 30, y: 40 }, { type: 'sign', x: 250, y: 34, w: 70, text: '24 HR' }],
+    doors: [{ id: 'out', side: 'S', x: 140, w: 80, to: 'st_main', toDoor: 'atm', label: 'Out to Pecan St' }],
+    props: [{ id: 'atm', type: 'atm', x: 142, y: 136, w: 76, h: 34, use: 'atm', label: 'ATM' }],
+    itemSpawns: [[90, 260], [280, 250]],
+  },
+
+  hospital: {
+    id: 'hospital', kind: 'interior', name: "St. Ann's Hospital · ER", w: 920, h: 560, wallH: 160,
+    look: { floor: 'linoleum', floorTone: '#dfe8e4', floorTone2: '#b9cfc8', wall: 'tiled', wallTone: '#c6dce4', trim: '#3b8fb0', base: '#2c5a6b' },
+    spawn: 'clinic', staff: ['patrice', 'kevin'],
+    arrive: { x: 650, y: 310 },
+    windows: [{ x: 300, y: 40, w: 120, h: 70, blinds: true }],
+    decor: [
+      { type: 'redcross', x: 470, y: 40 },
+      { type: 'clock', x: 560, y: 70 },
+      { type: 'curtainrail', x: 586, y: 18, w: 320 },
+    ],
+    doors: [{ id: 'out', side: 'S', x: 420, w: 90, to: 'st_harbor', toDoor: 'hospital', label: 'Out to Harbor Blvd' }],
+    props: [
+      { id: 'reception', type: 'reception', x: 340, y: 258, w: 210, h: 46, use: 'clinic', label: 'Reception', staff: { x: 446, y: 242, face: 'down' } },
+      { id: 'bed1', type: 'hbed', x: 600, y: 164, w: 86, h: 120, use: 'sit', label: 'Bed', bed: true, spots: [{ x: 643, y: 222, pose: 'lie', face: 'down', ax: 643, ay: 300 }] },
+      { id: 'bed2', type: 'hbed', x: 706, y: 164, w: 86, h: 120, use: 'sit', label: 'Bed', bed: true, spots: [{ x: 749, y: 222, pose: 'lie', face: 'down', ax: 749, ay: 300 }] },
+      { id: 'bed3', type: 'hbed', x: 812, y: 164, w: 86, h: 120, use: 'sit', label: 'Bed', bed: true, spots: [{ x: 855, y: 222, pose: 'lie', face: 'down', ax: 855, ay: 300 }] },
+      { id: 'iv1', type: 'ivstand', x: 690, y: 170, w: 12, h: 12 },
+      { id: 'iv2', type: 'ivstand', x: 796, y: 170, w: 12, h: 12 },
+      { id: 'cabinet', type: 'medcabinet', x: 30, y: 152, w: 96, h: 32 },
+      { id: 'vending', type: 'vending', x: 150, y: 154, w: 58, h: 40, use: 'vending', label: 'Vending machine' },
+      { id: 'linen', type: 'linencart', x: 236, y: 176, w: 56, h: 34, use: 'job', label: 'Linen cart' },
+      { id: 'chairs1', type: 'chairs', x: 60, y: 430, w: 200, h: 26, use: 'sit', label: 'Chairs',
+        spots: [{ x: 85, y: 438, pose: 'sit', face: 'up', ax: 85, ay: 414 }, { x: 135, y: 438, pose: 'sit', face: 'up', ax: 135, ay: 414 }, { x: 185, y: 438, pose: 'sit', face: 'up', ax: 185, ay: 414 }, { x: 235, y: 438, pose: 'sit', face: 'up', ax: 235, ay: 414 }] },
+      { id: 'plant', type: 'plant', x: 300, y: 440, w: 30, h: 26 },
+      { id: 'board', type: 'board', x: 232, y: 150, w: 48, h: 8, solid: false, wall: true, use: 'posting', label: 'Staff notices', job: 'orderly' },
+    ],
+    itemSpawns: [[560, 470], [120, 330], [780, 400]],
+  },
+
+  precinct: {
+    id: 'precinct', kind: 'interior', name: '5th Precinct · Front Desk', w: 820, h: 520, wallH: 160,
+    look: { floor: 'speckle', floorTone: '#c1bcb0', wall: 'paint', wallTone: '#d9cfa2', trim: '#6b5a43', base: '#3d3326', wainscot: '#8a7a5a' },
+    spawn: 'precinct', staff: ['ochoa', 'hollis'],
+    arrive: { x: 420, y: 390 },
+    windows: [{ x: 640, y: 40, w: 120, h: 70, blinds: true }],
+    decor: [
+      { type: 'seal', x: 410, y: 70 },
+      { type: 'wanted', x: 452, y: 44 },
+      { type: 'staffonly', x: 210, y: 50 },
+      { type: 'clock', x: 612, y: 70 },
+    ],
+    doors: [{ id: 'out', side: 'S', x: 370, w: 80, to: 'st_harbor', toDoor: 'precinct', label: 'Out to Harbor Blvd' }],
+    props: [
+      { id: 'desk', type: 'policedesk', x: 290, y: 240, w: 260, h: 50, use: 'police', label: 'Front desk', staff: { x: 420, y: 224, face: 'down' } },
+      { id: 'permits', type: 'permitwindow', x: 610, y: 240, w: 130, h: 46, use: 'license', label: 'Permits window' },
+      { id: 'bench1', type: 'bench2', x: 40, y: 410, w: 160, h: 26, use: 'sit', label: 'Bench',
+        spots: [{ x: 80, y: 418, pose: 'sit', face: 'up', ax: 80, ay: 394 }, { x: 160, y: 418, pose: 'sit', face: 'up', ax: 160, ay: 394 }] },
+      { id: 'bench2', type: 'bench2', x: 620, y: 410, w: 160, h: 26, use: 'sit', label: 'Bench',
+        spots: [{ x: 660, y: 418, pose: 'sit', face: 'up', ax: 660, ay: 394 }, { x: 740, y: 418, pose: 'sit', face: 'up', ax: 740, ay: 394 }] },
+      { id: 'cooler', type: 'watercooler', x: 150, y: 156, w: 30, h: 26, use: 'fountain', label: 'Water cooler' },
+      { id: 'board', type: 'board', x: 100, y: 150, w: 48, h: 8, solid: false, wall: true, use: 'posting', label: 'City jobs', job: 'sweeping' },
+    ],
+    itemSpawns: [[700, 360], [120, 330]],
+  },
+
+  // ---------------------------------------------------------------- streets, stage 1
+  st_main: {
+    id: 'st_main', kind: 'street', name: 'Pecan St & Main St', grid: [1, 0],
+    streets: { h: 'PECAN ST', v: 'MAIN ST' },
+    spawn: 'street',
+    lots: {
+      nw: {
+        kind: 'building', name: 'Quik Stop', style: 'store', rect: [60, 200, 400, 270], sign: 'QUIK STOP', signColor: '#7cf29a', neon: true,
+        doors: [{ id: 'store', side: 'S', at: 120, to: 'quikstop', toDoor: 'out', label: 'Quik Stop' }],
+        feat: [
+          { type: 'alley', x: 0, y: 0, w: 540, h: 200 },
+          { type: 'dumpster', x: 120, y: 90 },
+          { type: 'dumpster', x: 220, y: 90 },
+          { type: 'icebox', x: 400, y: 494 },
+          { type: 'trash', x: 40, y: 500 },
+        ],
+      },
+      ne: {
+        kind: 'building', name: 'Gulf Coast Savings', style: 'bank', rect: [40, 140, 460, 330], sign: 'GULF COAST SAVINGS', signColor: '#e8d9a8',
+        doors: [
+          { id: 'bank', side: 'S', at: 170, to: 'bank', toDoor: 'out', label: 'Gulf Coast Savings' },
+          { id: 'atm', side: 'S', at: 400, to: 'atm', toDoor: 'out', label: 'ATM · 24 hr', plaque: 'ATM' },
+        ],
+        feat: [
+          { type: 'lawn', x: 40, y: 20, w: 460, h: 110 },
+          { type: 'shrub', x: 90, y: 70, r: 18 }, { type: 'shrub', x: 250, y: 60, r: 16 }, { type: 'shrub', x: 420, y: 74, r: 18 },
+          { type: 'planter', x: 70, y: 500 }, { type: 'planter', x: 300, y: 500 },
+        ],
+      },
+      sw: {
+        kind: 'open', name: 'Taco lot',
+        feat: [
+          { type: 'parking', x: 20, y: 20, w: 500, h: 500, stalls: 'N' },
+          { type: 'truck', x: 260, y: 280 },
+          { type: 'picnic', x: 140, y: 380 },
+          { type: 'picnic', x: 380, y: 400 },
+          { type: 'lamp', x: 60, y: 480 },
+          { type: 'car', x: 90, y: 72, rot: 1.5708, color: '#3d5a80' },
+        ],
+      },
+      se: {
+        kind: 'vacant', name: 'Vacant lot',
+        feat: [
+          { type: 'fence', pts: [[20, 20], [520, 20], [520, 520], [20, 520], [20, 200]] },
+          { type: 'tires', x: 380, y: 360 },
+          { type: 'tires', x: 140, y: 150 },
+          { type: 'forlease', x: 70, y: 46 },
+          { type: 'shrub', x: 300, y: 250, r: 22 }, { type: 'shrub', x: 450, y: 120, r: 18 }, { type: 'shrub', x: 210, y: 430, r: 20 },
+          { type: 'tree', x: 440, y: 450, r: 58 },
+        ],
+      },
+    },
+    street: [
+      { type: 'lamp', x: 300, y: 590 }, { type: 'lamp', x: 1100, y: 590 },
+      { type: 'lamp', x: 300, y: 810 }, { type: 'lamp', x: 1100, y: 810 },
+      { type: 'lamp', x: 590, y: 300 }, { type: 'lamp', x: 810, y: 1100 },
+      { type: 'hydrant', x: 520, y: 812 }, { type: 'newsbox', x: 1240, y: 560 },
+      { type: 'trash', x: 460, y: 560 },
+      { type: 'pole', x: 160, y: 590 }, { type: 'pole', x: 1240, y: 590 },
+      { type: 'pole', x: 160, y: 810 }, { type: 'pole', x: 1240, y: 810 },
+    ],
+    itemSpawns: [[1100, 1100], [1250, 1300], [940, 1000], [300, 1200], [120, 1000], [200, 60], [460, 120], [700, 1300]],
+  },
+
+  st_harbor: {
+    id: 'st_harbor', kind: 'street', name: 'Pecan St & Harbor Blvd', grid: [2, 0],
+    streets: { h: 'PECAN ST', v: 'HARBOR BLVD' },
+    spawn: 'street',
+    lots: {
+      nw: {
+        kind: 'building', name: '5th Precinct', style: 'civic', rect: [40, 120, 440, 350], sign: '5TH PRECINCT', signColor: '#cfe3ff',
+        doors: [{ id: 'precinct', side: 'S', at: 220, to: 'precinct', toDoor: 'out', label: '5th Precinct' }],
+        feat: [
+          { type: 'parking', x: 30, y: 10, w: 470, h: 100, stalls: 'N' },
+          { type: 'car', x: 110, y: 58, rot: 1.5708, color: '#e8eaee', police: true },
+          { type: 'car', x: 300, y: 58, rot: 1.5708, color: '#e8eaee', police: true },
+          { type: 'flagpole', x: 470, y: 500 },
+        ],
+      },
+      ne: {
+        kind: 'building', name: "St. Ann's Hospital", style: 'hospital', rect: [30, 60, 480, 410], sign: "ST. ANN'S HOSPITAL", signColor: '#ff6b6b',
+        doors: [{ id: 'hospital', side: 'S', at: 240, to: 'hospital', toDoor: 'out', label: "St. Ann's · Emergency" }],
+        feat: [{ type: 'planter', x: 90, y: 500 }, { type: 'planter', x: 410, y: 500 }],
+      },
+      sw: {
+        kind: 'open', name: 'Hospital parking',
+        feat: [
+          { type: 'parking', x: 20, y: 20, w: 500, h: 500, stalls: 'N' },
+          { type: 'car', x: 152, y: 72, rot: 1.5708, color: '#c9a227' },
+          { type: 'car', x: 338, y: 72, rot: 1.5708, color: '#4a4f57' },
+          { type: 'car', x: 90, y: 300, rot: 0, color: '#7a2f45' },
+          { type: 'lamp', x: 270, y: 260 },
+        ],
+      },
+      se: {
+        kind: 'building', name: 'Harbor Pawn', style: 'brick', rect: [60, 180, 420, 300], sign: 'HARBOR PAWN & LOAN', signColor: '#ffcc66',
+        doors: [],
+        feat: [{ type: 'forlease', x: 240, y: 120 }, { type: 'alley', x: 0, y: 480, w: 540, h: 60 }],
+      },
+    },
+    street: [
+      { type: 'lamp', x: 300, y: 590 }, { type: 'lamp', x: 1100, y: 590 },
+      { type: 'lamp', x: 300, y: 810 }, { type: 'lamp', x: 1100, y: 810 },
+      { type: 'lamp', x: 810, y: 300 }, { type: 'lamp', x: 590, y: 1100 },
+      { type: 'hydrant', x: 880, y: 590 }, { type: 'trash', x: 980, y: 820 },
+      { type: 'busstop', x: 1000, y: 814, door: { id: 'bus', to: 'elsewhere', toDoor: 'bus2', label: 'Bus stop', npcOnly: true } },
+      { type: 'pole', x: 160, y: 590 }, { type: 'pole', x: 1240, y: 590 },
+      { type: 'pole', x: 160, y: 810 }, { type: 'pole', x: 1240, y: 810 },
+    ],
+    itemSpawns: [[300, 1100], [460, 1300], [1100, 1000], [1300, 1250], [620, 300], [200, 40]],
+  },
 };
 
 // Items placed loose when a new game starts (slice: three on the floor + cash).

@@ -387,6 +387,254 @@ export function propParts(prop) {
       }
       line(c, w / 2, h - 102, w / 2, h - 2, 'rgba(0,0,0,0.35)', 1);
     })];
+    case 'plant': return [part(x, y, w, h, 54, y + h, (c) => {
+      shadowBlob(c, w / 2 + 2, h - 2, w * 0.6, 6, 0.3);
+      fillRR(c, w / 2 - 11, h - 22, 22, 22, 3, '#b36a43', '#5a3420', 1);
+      ellipse(c, w / 2, h - 22, 11, 3, '#4a2e1c');
+      const rnd = rngFor(`plant${x},${y}`);
+      for (let k = 0; k < 14; k++) {
+        const a = -Math.PI / 2 + (rnd() - 0.5) * 2.6;
+        const L = 18 + rnd() * 26;
+        c.strokeStyle = k % 2 ? '#3f6e34' : '#558a44';
+        c.lineWidth = 5;
+        c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(w / 2, h - 22);
+        c.quadraticCurveTo(w / 2 + Math.cos(a) * L * 0.5, h - 22 + Math.sin(a) * L * 0.7, w / 2 + Math.cos(a) * L, h - 22 + Math.sin(a) * L);
+        c.stroke();
+      }
+    })];
+    case 'shopcounter': return [part(x, y, w, h, 48, y + h, (c) => {
+      box(c, 0, 0, w, h, 38, '#d9d4c8', '#6d737a');
+      for (let k = 12; k < w; k += 24) line(c, k, h - 34, k, h - 2, 'rgba(255,255,255,0.15)', 2);
+      // register + candy rack + lotto sign
+      fillRR(c, 30, h - 56, 40, 18, 2, '#2c2c30', '#111', 1);
+      fillRR(c, 36, h - 63, 28, 8, 1, '#1d3b2a', null);
+      fillRR(c, 110, h - 54, 60, 14, 2, '#c62828', '#5a0f0d', 1);
+      for (let k = 0; k < 6; k++) fillRR(c, 113 + k * 9, h - 52, 7, 10, 1, ['#ffd23f', '#3d6db5', '#7cf29a', '#ff8fb4', '#f28c38', '#fff'][k], null);
+      fillRR(c, w - 30, h - 70, 24, 30, 2, '#ffd23f', '#7a5d10', 1);
+      text(c, 'LOTTO', w - 18, h - 55, { size: 5, color: '#1a1a1a' });
+    })];
+    case 'shelf': return [part(x, y, w, h, 50, y + h, (c) => {
+      box(c, 0, 0, w, h, 46, '#cfd3d6', '#e7e9ea');
+      const rnd = rngFor(`shelf${x},${y}`);
+      const cols = ['#c62828', '#f9c80e', '#2c5aa0', '#7cb342', '#ff8f00', '#8e24aa', '#ececec', '#6d4c41'];
+      for (let row = 0; row < 3; row++) {
+        const sy = h - 44 + row * 14;
+        line(c, 2, sy + 12, w - 2, sy + 12, '#9aa3ab', 1.5);
+        let px = 4;
+        while (px < w - 8) {
+          const pw = 5 + rnd() * 8;
+          const ph = 7 + rnd() * 4;
+          c.fillStyle = cols[Math.floor(rnd() * cols.length)];
+          c.fillRect(px, sy + 12 - ph, pw, ph);
+          c.fillStyle = 'rgba(255,255,255,0.25)';
+          c.fillRect(px, sy + 12 - ph, pw, 1.5);
+          px += pw + 1;
+        }
+      }
+      // top face products
+      for (let px = 6; px < w - 6; px += 12) ellipse(c, px, -40 + h * 0.5, 4, 2.5, cols[Math.floor(rnd() * cols.length)]);
+    })];
+    case 'cooler': return [part(x, y, w, h, 104, y + h, (c) => {
+      box(c, 0, 0, w, h, 100, '#3a3e44', '#2b2e33', { r: 3 });
+      const doors = 3;
+      const dw = (w - 8) / doors;
+      for (let d = 0; d < doors; d++) {
+        const dx = 4 + d * dw;
+        vgrad(c, dx + 1, h - 96, dw - 2, 90, [[0, '#dff6ff'], [1, '#a8d6ea']]);
+        for (let s = 0; s < 4; s++) {
+          const sy = h - 90 + s * 22;
+          line(c, dx + 2, sy + 18, dx + dw - 2, sy + 18, 'rgba(60,70,80,0.5)', 1);
+          for (let b = 0; b < 4; b++) fillRR(c, dx + 4 + b * (dw / 4.3), sy + 4, 5, 14, 1.5, ['#c62828', '#2c5aa0', '#7cb342', '#f9c80e'][(b + s + d) % 4], null);
+        }
+        line(c, dx + dw - 5, h - 70, dx + dw - 5, h - 40, '#c7ccd1', 2);
+        line(c, dx + 4, h - 94, dx + 12, h - 20, 'rgba(255,255,255,0.35)', 2);
+      }
+      text(c, 'COLD DRINKS', w / 2, h - 100 + 4, { size: 6, color: '#7cf2ff' });
+    })];
+    case 'magrack': return [part(x, y, w, h, 44, y + h, (c) => {
+      box(c, 0, 0, w, h, 38, '#8a5b3c', '#6b4530');
+      for (let row = 0; row < 2; row++) for (let k = 0; k < 5; k++) {
+        const mx = 4 + k * ((w - 8) / 5);
+        fillRR(c, mx, h - 34 + row * 16, (w - 8) / 5 - 2, 14, 1, ['#e57373', '#64b5f6', '#ffd54f', '#81c784', '#ba68c8'][(k + row) % 5], 'rgba(0,0,0,0.3)', 0.6);
+      }
+    })];
+    case 'icechest': return [part(x, y, w, h, 36, y + h, (c) => {
+      box(c, 0, 0, w, h, 30, '#e9eef2', '#cfd8de');
+      fillRR(c, w / 2 - 18, h - 24, 36, 12, 2, '#2c6fbb', null);
+      text(c, 'ICE', w / 2, h - 18, { size: 8, color: '#fff' });
+    })];
+    case 'tellercounter': return [part(x, y, w, h, 100, y + h, (c) => {
+      box(c, 0, 0, w, h, 44, '#e8dcc4', '#6b4a33');
+      for (let k = 30; k < w; k += 60) fillRR(c, k, h - 38, 40, 30, 2, null, 'rgba(0,0,0,0.25)', 1.5);
+      vgrad(c, 0, h - 44, w, 4, [[0, '#f1dfa3'], [1, '#8a6a2a']]);
+      // glass partitions standing on the back edge of the counter
+      for (let k = 0; k < 3; k++) {
+        const gx = 10 + k * ((w - 20) / 3);
+        const gw = (w - 20) / 3 - 10;
+        fillRR(c, gx, -92, gw, 50, 2, 'rgba(190,220,235,0.22)', 'rgba(255,255,255,0.6)', 1.2);
+        line(c, gx + 6, -88, gx + 22, -48, 'rgba(255,255,255,0.3)', 2.5);
+        fillRR(c, gx + gw / 2 - 14, -46, 28, 4, 1, '#3a2718', null);
+        text(c, `${k + 1}`, gx + gw / 2, -84, { size: 8, color: '#f1dfa3' });
+      }
+    })];
+    case 'rope': return [part(x, y, w, h, 34, y + h, (c) => {
+      const n = Math.max(2, Math.round(w / 70) + 1);
+      for (let k = 0; k < n; k++) {
+        const px = (k / (n - 1)) * w;
+        ellipse(c, px, h - 2, 6, 2.5, '#b58b3e');
+        line(c, px, h - 2, px, -24, '#d8b456', 2.5);
+        circle(c, px, -25, 3, '#f1dfa3');
+        if (k < n - 1) {
+          const nx = ((k + 1) / (n - 1)) * w;
+          c.strokeStyle = '#8b1a2b';
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(px, -20);
+          c.quadraticCurveTo((px + nx) / 2, -6, nx, -20);
+          c.stroke();
+        }
+      }
+    })];
+    case 'chairs': return [
+      part(x, y, w, h, 6, y, (c) => {
+        shadowBlob(c, w / 2 + 2, h / 2 + 4, w * 0.55, h * 0.7, 0.25);
+        for (const sp of prop.spots || []) fillRR(c, sp.x - x - 13, 2, 26, h - 6, 3, '#3b6fa0', '#1f3a5a', 1);
+        line(c, 2, h - 2, w - 2, h - 2, '#8c949b', 2);
+      }),
+      part(x, y, w, h, 24, y + h + 1, (c) => {
+        for (const sp of prop.spots || []) {
+          fillRR(c, sp.x - x - 13, h - 22, 26, 20, 3, '#2f5f8f', '#1f3a5a', 1);
+          vgrad(c, sp.x - x - 13, h - 22, 26, 4, [[0, 'rgba(255,255,255,0.25)'], [1, 'rgba(255,255,255,0)']]);
+        }
+      }),
+    ];
+    case 'officedesk': return [part(x, y, w, h, 56, y + h, (c) => {
+      box(c, 0, 0, w, h, 30, '#7d5338', '#5f3e29');
+      fillRR(c, 20, h - 56, 34, 22, 2, '#111', '#000', 1);
+      fillRR(c, 23, h - 53, 28, 15, 1, '#2c5a7c', null);
+      fillRR(c, 64, h - 42, 30, 10, 1, '#f4efe2', 'rgba(0,0,0,0.2)', 0.6);
+      fillRR(c, 98, h - 46, 12, 12, 2, '#f2efe6', null);
+      ellipse(c, 104, h - 46, 5, 2, '#3a1f12');
+    })];
+    case 'kiosk': return [part(x, y, w, h, 64, y + h, (c) => {
+      shadowBlob(c, w / 2 + 2, h - 2, w * 0.6, 6, 0.3);
+      fillRR(c, w / 2 - 6, h - 30, 12, 30, 2, '#3b3e44', null);
+      fillRR(c, 2, h - 64, w - 4, 38, 4, '#2b2e33', '#111', 1.5);
+      vgrad(c, 6, h - 60, w - 12, 28, [[0, '#0f2a1d'], [1, '#14402a']]);
+      c.strokeStyle = '#5dffb0';
+      c.lineWidth = 1.2;
+      c.beginPath();
+      for (let k = 0; k <= 10; k++) c.lineTo(8 + k * ((w - 16) / 10), h - 40 - Math.sin(k * 1.3) * 6 - k * 0.6);
+      c.stroke();
+      text(c, 'MARKET', w / 2, h - 56, { size: 5, color: '#5dffb0' });
+    })];
+    case 'atm': return [part(x, y, w, h, 80, y + h, (c) => {
+      box(c, 0, 0, w, h, 74, '#4a5058', '#3a3f46', { r: 4 });
+      fillRR(c, 10, h - 70, w - 20, 24, 2, '#0e1d2b', '#000', 1);
+      vgrad(c, 12, h - 68, w - 24, 20, [[0, '#1d4f7a'], [1, '#12324e']]);
+      text(c, 'WELCOME', w / 2, h - 58, { size: 6, color: '#bfe3ff' });
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) fillRR(c, 18 + k * 9, h - 40 + r * 7, 7, 5, 1, '#c7ccd1', null);
+      fillRR(c, w - 30, h - 40, 18, 4, 1, '#111', null);
+      fillRR(c, w - 30, h - 26, 18, 6, 1, '#111', null);
+      fillRR(c, 6, h - 80, w - 12, 8, 2, '#2c6fbb', null);
+      text(c, 'ATM', w / 2, h - 76, { size: 6, color: '#fff' });
+    })];
+    case 'reception': return [part(x, y, w, h, 50, y + h, (c) => {
+      box(c, 0, 0, w, h, 42, '#eef2f2', '#3b8fb0');
+      fillRR(c, w * 0.25, h - 34, w * 0.5, 14, 2, '#f4f6f6', null);
+      text(c, 'RECEPTION', w / 2, h - 27, { size: 8, color: '#2c5a6b' });
+      fillRR(c, w - 54, h - 62, 36, 22, 2, '#111', '#000', 1);
+      fillRR(c, w - 51, h - 59, 30, 15, 1, '#2c7a6b', null);
+      fillRR(c, 20, h - 50, 30, 8, 1, '#f4efe2', null);
+    })];
+    case 'hbed': return [
+      part(x, y, w, h, 64, y, (c) => {
+        shadowBlob(c, w / 2 + 4, h / 2 + 6, w * 0.6, h * 0.55, 0.3);
+        // monitor on a pole at the head
+        line(c, w - 8, 0, w - 8, -56, '#8c949b', 2);
+        fillRR(c, w - 30, -64, 28, 18, 2, '#111', '#000', 1);
+        c.strokeStyle = '#5dffb0';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(w - 27, -55);
+        c.lineTo(w - 20, -55);
+        c.lineTo(w - 17, -61);
+        c.lineTo(w - 14, -50);
+        c.lineTo(w - 11, -55);
+        c.lineTo(w - 5, -55);
+        c.stroke();
+        fillRR(c, 0, -10, w, 16, 3, '#cfd5da', '#6d737a', 1);
+        fillRR(c, 2, 4, w - 4, h - 6, 4, '#9aa3ab', '#5d656c', 1);
+        fillRR(c, 6, 6, w - 12, h - 14, 5, '#f6f8f8', 'rgba(0,0,0,0.2)', 1);
+        fillRR(c, 12, 10, w - 24, 22, 7, '#ffffff', 'rgba(0,0,0,0.2)', 1);
+      }),
+      part(x, y, w, h, 0, y + h + 0.5, (c) => {
+        fillRR(c, 6, 46, w - 12, h - 54, 4, '#8fc1d1', '#4a7f91', 1.2);
+        for (let k = 0; k < 3; k++) line(c, 10, 56 + k * 14, w - 10, 58 + k * 14, 'rgba(0,0,0,0.1)', 2);
+        fillRR(c, 6, 42, w - 12, 8, 3, '#f6f8f8', null);
+        line(c, 0, h - 4, w, h - 4, '#8c949b', 3);
+      }),
+    ];
+    case 'ivstand': return [part(x, y, w, h, 76, y + h, (c) => {
+      ellipse(c, w / 2, h - 2, 7, 2.5, '#8c949b');
+      line(c, w / 2, h - 2, w / 2, -64, '#c7ccd1', 2);
+      line(c, w / 2 - 6, -64, w / 2 + 6, -64, '#c7ccd1', 2);
+      fillRR(c, w / 2 + 2, -62, 8, 14, 3, 'rgba(220,240,255,0.8)', '#8c949b', 0.8);
+      line(c, w / 2 + 6, -48, w / 2 + 4, -20, 'rgba(200,220,240,0.8)', 1);
+    })];
+    case 'medcabinet': return [part(x, y, w, h, 74, y + h, (c) => {
+      box(c, 0, 0, w, h, 70, '#f2f4f4', '#dfe5e6');
+      for (let k = 0; k < 2; k++) {
+        const gx = 4 + k * (w / 2);
+        fillRR(c, gx, h - 66, w / 2 - 8, 58, 2, 'rgba(200,225,235,0.45)', '#9aa3ab', 1);
+        for (let s = 0; s < 3; s++) {
+          line(c, gx + 2, h - 50 + s * 16, gx + w / 2 - 10, h - 50 + s * 16, '#9aa3ab', 1);
+          for (let b = 0; b < 4; b++) fillRR(c, gx + 4 + b * 9, h - 60 + s * 16, 6, 9, 1, ['#fff', '#ffcc80', '#90caf9', '#ef9a9a'][b], null);
+        }
+      }
+      fillRR(c, w / 2 - 10, h - 72, 20, 8, 1, '#d32f2f', null);
+    })];
+    case 'vending': return [part(x, y, w, h, 104, y + h, (c) => {
+      box(c, 0, 0, w, h, 100, '#c62828', '#a91f1f', { r: 4 });
+      fillRR(c, 5, h - 94, w - 20, 70, 2, '#101418', '#000', 1);
+      for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) fillRR(c, 8 + k * 11, h - 90 + r * 13, 8, 9, 1, ['#ffd23f', '#7cf29a', '#64b5f6', '#ff8fb4', '#ffb36b'][(r + k) % 5], null);
+      vgrad(c, 5, h - 94, w - 20, 70, [[0, 'rgba(255,255,255,0.18)'], [1, 'rgba(255,255,255,0)']]);
+      fillRR(c, w - 13, h - 80, 8, 30, 1, '#2b2b2b', null);
+      fillRR(c, 6, h - 18, w - 22, 10, 1, '#111', null);
+    })];
+    case 'linencart': return [part(x, y, w, h, 40, y + h, (c) => {
+      shadowBlob(c, w / 2 + 2, h, w * 0.6, 6, 0.3);
+      fillRR(c, 0, h - 30, w, 26, 2, '#9aa3ab', '#5d656c', 1);
+      for (let k = 0; k < 3; k++) fillRR(c, 4, h - 38 - k * 6, w - 8, 7, 2, ['#f6f8f8', '#cfe6ee', '#f6f8f8'][k], 'rgba(0,0,0,0.2)', 0.6);
+      for (const wx of [6, w - 6]) circle(c, wx, h - 2, 3, '#222');
+    })];
+    case 'policedesk': return [part(x, y, w, h, 104, y + h, (c) => {
+      box(c, 0, 0, w, h, 46, '#8a7a5a', '#5a4c36');
+      fillRR(c, 6, -98, w - 12, 52, 2, 'rgba(180,210,230,0.22)', 'rgba(255,255,255,0.6)', 1.5);
+      line(c, 12, -92, 34, -50, 'rgba(255,255,255,0.3)', 3);
+      fillRR(c, w / 2 - 30, -50, 60, 5, 1, '#2b2e32', null);
+      fillRR(c, w / 2 - 40, h - 36, 80, 18, 2, '#1f3557', '#0e1a2b', 1);
+      text(c, 'POLICE', w / 2, h - 27, { size: 10, color: '#e8c547' });
+      fillRR(c, 16, h - 54, 30, 8, 1, '#f4efe2', null);
+    })];
+    case 'permitwindow': return [part(x, y, w, h, 110, y + h, (c) => {
+      box(c, 0, 0, w, h, 42, '#cfc6ad', '#8a7a5a');
+      fillRR(c, 6, -90, w - 12, 48, 2, 'rgba(180,210,230,0.22)', 'rgba(255,255,255,0.6)', 1.5);
+      fillRR(c, 10, -108, w - 20, 18, 2, '#2c5aa0', '#16305a', 1);
+      text(c, 'PERMITS & TESTS', w / 2, -99, { size: 7, color: '#fff' });
+    })];
+    case 'bench2': return [part(x, y, w, h, 20, y + h, (c) => {
+      box(c, 0, 0, w, h, 16, '#9a6a48', '#7d5338');
+      for (let k = 10; k < w; k += 14) line(c, k, -14, k, h - 18, 'rgba(0,0,0,0.12)', 1);
+    })];
+    case 'watercooler': return [part(x, y, w, h, 56, y + h, (c) => {
+      fillRR(c, 2, h - 32, w - 4, 32, 2, '#e8eaec', '#9aa3ab', 1);
+      fillRR(c, 4, h - 56, w - 8, 26, 8, 'rgba(120,190,240,0.75)', '#4b7fa0', 1);
+      circle(c, w / 2 - 4, h - 20, 2, '#2c6fbb');
+      circle(c, w / 2 + 4, h - 20, 2, '#d32f2f');
+    })];
     case 'parkbench': return parkBench(prop);
     case 'busbench': return [part(x, y, w, h, 16, y, (c) => {
       fillRR(c, 0, 0, w, h, 2, '#7d8b94', '#3b444a', 1);
@@ -501,7 +749,55 @@ export function featureParts(f) {
       circle(c, 96, -52, 7, '#c0392b');
       text(c, 'BUS', 96, -52, { size: 5, color: '#fff' });
     })];
-    case 'car': return [carPart(f.x, f.y, f.rot || 0, f.color || '#8a2f2f', f.y + 30)];
+    case 'car': return [carPart(f.x, f.y, f.rot || 0, f.color || '#8a2f2f', f.y + 30, null, f.police)];
+    case 'truck': return [part(f.x - 66, f.y - 28, 132, 56, 54, f.y + 28, (c) => {
+      shadowBlob(c, 70, 52, 72, 14, 0.35);
+      // body
+      box(c, 0, 0, 132, 40, 46, '#f4efe2', '#e8b923', { r: 6 });
+      fillRR(c, 96, -10, 36, 50, 5, '#e8b923', '#7a5d10', 1);
+      fillRR(c, 104, -4, 24, 14, 2, '#2a3a48', null);
+      // serving window + awning
+      fillRR(c, 16, 6, 64, 22, 2, '#2b2b2b', null);
+      vgrad(c, 18, 8, 60, 18, [[0, '#ffe2a8'], [1, '#d8a45a']]);
+      for (let k = 0; k < 8; k++) {
+        c.fillStyle = k % 2 ? '#c62828' : '#fff';
+        c.fillRect(12 + k * 9, 0, 9, 7);
+      }
+      text(c, 'TACOS LUPITA', 48, 34, { size: 7, color: '#c62828' });
+      for (const wx of [24, 108]) circle(c, wx, 42, 6, '#111');
+    })];
+    case 'tires': return [part(f.x - 16, f.y - 10, 32, 20, 18, f.y + 10, (c) => {
+      for (let k = 0; k < 3; k++) {
+        ellipse(c, 16, 14 - k * 6, 14, 6, '#1d1d1d');
+        ellipse(c, 16, 13 - k * 6, 7, 3, '#3a3a3a');
+      }
+    })];
+    case 'icebox': return [part(f.x - 22, f.y - 12, 44, 24, 34, f.y + 12, (c) => {
+      box(c, 0, 0, 44, 18, 30, '#e9eef2', '#cfd8de');
+      fillRR(c, 6, -6, 32, 10, 2, '#2c6fbb', null);
+      text(c, 'ICE', 22, -1, { size: 7, color: '#fff' });
+    })];
+    case 'flagpole': return [part(f.x - 4, f.y - 4, 60, 8, 160, f.y + 3, (c) => {
+      line(c, 4, 4, 4, -150, '#c7ccd1', 3);
+      circle(c, 4, -152, 3, '#e8c547');
+      const wave = (k) => Math.sin(k * 0.25) * 3;
+      c.fillStyle = '#1f3557';
+      c.beginPath();
+      c.moveTo(6, -146);
+      for (let k = 0; k <= 44; k += 4) c.lineTo(6 + k, -146 + wave(k));
+      for (let k = 44; k >= 0; k -= 4) c.lineTo(6 + k, -118 + wave(k));
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#e8c547';
+      c.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI) / 5;
+        const r = k % 2 ? 3 : 7;
+        c.lineTo(28 + Math.cos(a) * r, -132 + Math.sin(a) * r);
+      }
+      c.closePath();
+      c.fill();
+    })];
     default:
       return [];
   }
@@ -552,17 +848,17 @@ export function canopyPart(f) {
 }
 
 // Top-down car. rot = heading (0 = facing +x).
-export function carPart(x, y, rot, color, key, dmg = null) {
+export function carPart(x, y, rot, color, key, dmg = null, police = false) {
   const L = 92;
   const W = 42;
   const R = Math.ceil(Math.hypot(L, W) / 2) + 6;
   return part(x - R, y - R, R * 2, R * 2, 0, key, (c) => {
     c.translate(R, R);
-    drawCar(c, rot, color, dmg);
+    drawCar(c, rot, color, dmg, false, police);
   }, 0);
 }
 
-export function drawCar(c, rot, color, dmg = null, lights = false) {
+export function drawCar(c, rot, color, dmg = null, lights = false, police = false) {
   const L = 92;
   const W = 42;
   c.save();
@@ -590,6 +886,14 @@ export function drawCar(c, rot, color, dmg = null, lights = false) {
   // mirrors
   fillRR(c, L * 0.12, -W / 2 - 4, 6, 4, 1, shade(color, -0.3), null);
   fillRR(c, L * 0.12, W / 2, 6, 4, 1, shade(color, -0.3), null);
+  if (police) {
+    // black-and-white panels and a light bar
+    fillRR(c, -L / 2 + 2, -W / 2 + 1, L * 0.24, W - 2, 6, '#1d1f24', null);
+    fillRR(c, L / 2 - L * 0.24 - 2, -W / 2 + 1, L * 0.24, W - 2, 6, '#1d1f24', null);
+    fillRR(c, -3, -W * 0.32, 8, W * 0.64, 2, '#222', null);
+    fillRR(c, -2, -W * 0.3, 6, W * 0.28, 1, '#e53935', null);
+    fillRR(c, -2, W * 0.02, 6, W * 0.28, 1, '#1e88e5', null);
+  }
   if (dmg) {
     // dented panels: front, rear, left, right
     const dent = (px, py, amt) => {
@@ -645,6 +949,11 @@ export function drawItem(c, def, s = 24, it = null) {
     case 'tea': fillRR(c, -5, -8, 10, 16, 2, 'rgba(180,110,40,0.75)', '#7a5020', 1); circle(c, -1, -4, 1.6, 'rgba(255,255,255,0.7)'); circle(c, 2, 0, 1.6, 'rgba(255,255,255,0.7)'); break;
     case 'medkit': fillRR(c, -11, -7, 22, 14, 2, '#f2efe6', '#888', 1); fillRR(c, -2, -5, 4, 10, 0, '#d32f2f', null); fillRR(c, -5, -2, 10, 4, 0, '#d32f2f', null); break;
     case 'bandage': circle(c, 0, 0, 7, '#f5f0e6'); circle(c, 0, 0, 3, '#d9d2c2'); break;
+    case 'envelope': fillRR(c, -10, -7, 20, 14, 1, '#e8dcc0', '#8a7a5a', 1); line(c, -10, -7, 0, 1, '#8a7a5a', 1); line(c, 10, -7, 0, 1, '#8a7a5a', 1); circle(c, 0, 1, 2.2, '#b3261e'); break;
+    case 'box': fillRR(c, -11, -9, 22, 18, 1, '#c8a06a', '#7a5a2e', 1); line(c, -11, -3, 11, -3, '#a07a44', 2); line(c, 0, -9, 0, -3, '#a07a44', 2); text(c, 'SODA', 0, 3, { size: 5, color: '#7a2020' }); break;
+    case 'linen': fillRR(c, -11, -6, 22, 12, 3, '#f6f8f8', '#9aa3ab', 1); line(c, -9, -1, 9, -1, 'rgba(0,0,0,0.12)', 1); line(c, -9, 2, 9, 2, 'rgba(0,0,0,0.12)', 1); break;
+    case 'plates': circle(c, 0, 0, 10, '#1d1d1d'); circle(c, 0, 0, 3, '#5d656c'); circle(c, -3, -3, 2, 'rgba(255,255,255,0.15)'); break;
+    case 'dumbbell': line(c, -8, 0, 8, 0, '#9aa3ab', 3); fillRR(c, -12, -6, 6, 12, 2, '#1d1d1d', null); fillRR(c, 6, -6, 6, 12, 2, '#1d1d1d', null); break;
     case 'book': case 'manual': fillRR(c, -7, -10, 14, 20, 1.5, def === 'manual' ? '#2c5aa0' : '#8e3b2f', '#222', 1); fillRR(c, 5, -9, 2, 18, 0, '#f2efe6', null); fillRR(c, -4, -6, 8, 3, 0, 'rgba(255,255,255,0.6)', null); break;
     default: circle(c, 0, 0, 7, '#999');
   }

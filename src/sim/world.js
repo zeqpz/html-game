@@ -2,7 +2,7 @@
 // interactable props, street features and a nav grid. Pure data in, no DOM.
 
 import { ROOMS, CELL } from '../data/rooms.js';
-import { HANGOUTS } from '../data/npcs.js';
+import { HANGOUTS, NPCS } from '../data/npcs.js';
 import { rectHit, pushOut, clamp } from './util.js';
 
 export const ACTOR_R = 9;
@@ -20,6 +20,7 @@ function compileInterior(def) {
     id: def.id, kind: 'interior', def, name: def.name, w: def.w, h: def.h, wallH: def.wallH,
     bounds: rect(16, def.wallH + 4, def.w - 32, def.h - def.wallH - 20),
     solids: [], props: [], doors: [], features: [], lights: [],
+    hangouts: { ...(def.hangouts || {}), ...(HANGOUTS[def.id] || {}) },
   };
   for (const p of def.props || []) {
     const prop = { ...p, room: def.id };
@@ -112,6 +113,20 @@ function addFeature(r, f, ox, oy, solid) {
       break;
     }
     case 'picnic': solid(x - 36, y - 20, 72, 40, 'picnic'); break;
+    case 'truck': solid(x - 64, y - 26, 128, 52, 'truck'); break;
+    case 'tires': solid(x - 14, y - 10, 28, 20, 'tires'); break;
+    case 'icebox': solid(x - 22, y - 12, 44, 24, 'icebox'); break;
+    case 'flagpole': solid(x - 3, y - 3, 6, 6, 'pole'); break;
+    case 'fence': {
+      for (let i = 0; i < f.pts.length - 1; i++) {
+        const [ax, ay] = f.pts[i];
+        const [bx, by] = f.pts[i + 1];
+        const x0 = ox + Math.min(ax, bx);
+        const y0 = oy + Math.min(ay, by);
+        solid(x0 - 2, y0 - 2, Math.abs(bx - ax) + 4, Math.abs(by - ay) + 4, 'fence');
+      }
+      break;
+    }
     case 'busstop': {
       solid(x - 46, y + 26, 92, 8, 'shelter');
       if (f.door) {
@@ -130,8 +145,17 @@ function addFeature(r, f, ox, oy, solid) {
 export class World {
   constructor() {
     this.rooms = {};
-    for (const id in ROOMS) {
-      const def = ROOMS[id];
+    const defs = { ...ROOMS };
+    // homes for people who ride the bus: generated, not hand-written
+    const elsewhere = { ...defs.elsewhere, doors: [...defs.elsewhere.doors] };
+    defs.elsewhere = elsewhere;
+    for (const n of NPCS) {
+      if (defs[n.home]) continue;
+      defs[n.home] = { id: n.home, kind: 'offmap', name: `${n.short}'s place`, doors: [{ id: 'door', to: 'elsewhere', toDoor: n.home }] };
+      elsewhere.doors.push({ id: n.home, to: n.home, toDoor: 'door' });
+    }
+    for (const id in defs) {
+      const def = defs[id];
       if (def.kind === 'interior') this.rooms[id] = compileInterior(def);
       else if (def.kind === 'street') this.rooms[id] = compileStreet(def);
       else this.rooms[id] = { id, kind: 'offmap', def, name: def.name, doors: (def.doors || []).map((d) => ({ ...d, room: id })), props: [], solids: [], features: [], lights: [] };

@@ -92,13 +92,10 @@ export class Police {
     }
     if (playerIn) {
       const fine = 40;
-      const paid = Math.min(fine, cashOnBody(sim, p));
-      if (paid > 0) spendCash(sim, p, paid);
-      const owed = fine - paid;
-      if (owed > 0) p.bank = Math.max(0, p.bank - owed);
+      sim.money.fine(fine, 'fighting');
       sim.addHeat(12, 'fight broken up by police');
       sim.sayText(c, `That's a $${fine} fine. Don't let me see it again.`);
-      sim.log(`Officer ${c.short} broke up the fight. Fined $${fine}.`, 'bad');
+      sim.log(`${c.short} broke up the fight.`, 'bad');
       remember(sim, c, { type: 'started', who: sim.s.lastFight?.by || 'p', x: sim.s.lastFight?.on || 'p' });
       if (p.stats.health < 25) sim.sendTo('hospital', 'The officer called an ambulance.');
       else if (p.heat >= 70) sim.sendTo('police', 'The officer walks you to the front desk.');
@@ -133,10 +130,9 @@ export class Police {
     }
     if (found) {
       const fine = 75 * found;
-      const paid = Math.min(fine, cashOnBody(sim, p));
-      if (paid) spendCash(sim, p, paid);
+      sim.money.fine(fine, 'possession');
       sim.addHeat(10, 'caught holding');
-      sim.log(`Stopped and searched. ${found} item(s) taken, fined $${fine}.`, 'bad');
+      sim.log(`Stopped and searched. ${found} item(s) taken.`, 'bad');
     } else {
       p.heat = clamp(p.heat - 15, 0, 100);
       sim.log('Stopped and searched. Clean.', '');

@@ -3,7 +3,7 @@
 import { JOBS, FAVORS } from '../data/work.js';
 import { ITEMS } from '../data/items.js';
 import { remember, adjustRel, relV, setTag } from './memory.js';
-import { newItem, addCash, destroy, placeGround, giveNpc } from './items.js';
+import { newItem, addCash, destroy, placeGround, giveNpc, putInHands } from './items.js';
 import { hm, tod, inWindow, clock12, dayOf, DAY } from './util.js';
 
 export class Work {
@@ -32,6 +32,10 @@ export class Work {
     return miss;
   }
 
+  jobFor(boss) {
+    return Object.keys(JOBS).find((k) => JOBS[k].boss === boss) || null;
+  }
+
   posting(jobId) {
     const J = JOBS[jobId];
     if (!J) return null;
@@ -41,6 +45,7 @@ export class Work {
       id: jobId, title: J.title, text: J.posting, pay: rank.pay, floor: J.floor, hired: js.hired, rank: rank.title,
       hours: js.hours, next: J.ranks[js.rank + 1] || null, miss: this.meetsFloor(J.floor),
       window: `${clock12(hm(J.clockIn[0]))} – ${clock12(hm(J.clockIn[1]))}`,
+      boss: this.s.actors[J.boss]?.short,
     };
   }
 
@@ -48,7 +53,7 @@ export class Work {
     const sim = this.sim;
     const J = JOBS[jobId];
     const js = this.jobState(jobId);
-    if (js.hired) return { ok: false, text: "You already work here." };
+    if (js.hired) return { ok: false, text: 'You already work here.' };
     const miss = this.meetsFloor(J.floor);
     if (miss.length) return { ok: false, text: `Not yet. Needs ${miss.join(', ')}.` };
     js.hired = true;
@@ -59,25 +64,35 @@ export class Work {
     }
     sim.log(`Hired: ${J.title} at ${sim.world.room(J.place).name}.`, 'good');
     sim.sfx('cash');
-    return { ok: true, text: `You're hired. Clock in between ${clock12(hm(J.clockIn[0]))} and ${clock12(hm(J.clockIn[1]))}.` };
+    return { ok: true, text: `You're hired. Clock in between ${clock12(hm(J.clockIn[0]))} and ${clock12(hm(J.clockIn[1]))} — ask ${boss ? boss.short : 'the boss'}.` };
   }
 
   // Asking a boss for work: hire, or start today's shift.
   askForWork(npc) {
     const sim = this.sim;
-    const jobId = Object.keys(JOBS).find((k) => JOBS[k].boss === npc.id);
-    if (!jobId) return { ok: false, text: pickOne(sim, ["I don't have anything for you.", "Nothing right now. Try the boards around town.", 'Not hiring, sorry.']) };
+    const jobId = this.jobFor(npc.id);
+    if (!jobId) return { ok: false, text: pickOne(sim, ["I don't have anything for you.", 'Nothing right now. Check the boards around town.', 'Not hiring, sorry.']) };
     const J = JOBS[jobId];
     const js = this.jobState(jobId);
     if (!js.hired) return this.apply(jobId);
-    if (this.s.job.shift) return { ok: false, text: 'You\'re on the clock. Get to it.' };
+    if (this.s.job.shift) return { ok: false, text: 'You\'re already on the clock somewhere. Finish that first.' };
     const day = dayOf(this.s.t);
     if (js.lastShiftDay === day) return { ok: false, text: 'You already worked today. Come back tomorrow.' };
     const m = tod(this.s.t);
     if (!inWindow(m, hm(J.clockIn[0]), hm(J.clockIn[1]))) return { ok: false, text: `Shifts start between ${clock12(hm(J.clockIn[0]))} and ${clock12(hm(J.clockIn[1]))}.` };
-    if (npc.room !== J.place) return { ok: false, text: 'Talk to me at the diner.' };
+    if (npc.room !== J.place) return { ok: false, text: `Find me at ${sim.world.room(J.place).name}.` };
     this.startShift(jobId);
-    return { ok: true, text: pickOne(sim, ["Apron's on the hook. Orders are stacking up.", "Good timing. Let's go.", 'Tables first, then the floor. Move.']) };
+    return { ok: true, text: pickOne(sim, ["Good timing. Let's go.", 'Alright, here\'s your list. Move.', "Clock's running. Get to it."]) };
+  }
+
+  // Resolve a target spec into [{ room, prop, label }].
+  targets(J, spec) {
+    const r = this.sim.world.room(J.place);
+    const named = (p) => `${p.label}${/\d$/.test(p.id) ? ' ' + p.id.slice(-1) : ''}`;
+    if (Array.isArray(spec)) return spec.map((id) => r.props.find((p) => p.id === id)).filter(Boolean).map((p) => ({ room: J.place, prop: p.id, label: named(p) }));
+    if (spec && spec.tag) return r.props.filter((p) => p[spec.tag]).map((p) => ({ room: J.place, prop: p.id, label: named(p) }));
+    if (spec && spec.list) return spec.list.map(([room, prop, label]) => ({ room, prop, label }));
+    return [];
   }
 
   startShift(jobId) {
@@ -85,27 +100,56 @@ export class Work {
     const J = JOBS[jobId];
     const js = this.jobState(jobId);
     const rank = J.ranks[js.rank];
-    const r = sim.world.room(J.place);
-    const tables = r.props.filter((p) => p.table);
     const tasks = [];
+    let last = null;
     for (let i = 0; i < rank.tasks; i++) {
-      const kind = sim.rng.weighted(J.taskKinds);
-      const tp = sim.rng.pick(tables);
-      if (kind === 'serve') {
-        tasks.push({ kind: 'pickup', prop: 'pass', label: `Pick up the order for ${tp.label} ${tp.id.slice(-1)}` });
-        tasks.push({ kind: 'serve', prop: tp.id, label: `Serve ${tp.label} ${tp.id.slice(-1)}` });
-      } else if (kind === 'wipe') {
-        tasks.push({ kind: 'wipe', prop: tp.id, label: `Wipe down ${tp.label} ${tp.id.slice(-1)}`, dur: 2.2 });
+      const T = sim.rng.weighted(J.tasks.map((t) => [t, t.w]));
+      if (T.kind === 'carry') {
+        const opts = this.targets(J, T.to).filter((o) => !last || o.prop !== last.prop || o.room !== last.room);
+        const to = sim.rng.pick(opts.length ? opts : this.targets(J, T.to));
+        const pickup = T.fromSpot
+          ? { kind: 'pickup', room: J.place, ...this.spot(J.place), item: T.item, mark: T.mark, label: T.pick.replace('{to}', to.label), dur: 0 }
+          : { kind: 'pickup', room: J.place, prop: T.from, item: T.item, label: T.pick.replace('{to}', to.label) };
+        tasks.push(pickup);
+        tasks.push({ kind: 'deliver', room: to.room, prop: to.prop, item: T.item, label: T.drop.replace('{to}', to.label) });
+        last = to;
+      } else if (T.kind === 'hold') {
+        const at = sim.rng.pick(this.targets(J, T.at));
+        tasks.push({ kind: 'hold', room: at.room, prop: at.prop, dur: T.dur, label: T.label.replace('{to}', at.label) });
+        last = at;
       } else {
-        const pt = sim.world.randomPoint(J.place, sim.rng);
-        tasks.push({ kind: 'mop', x: pt.x, y: pt.y, label: 'Mop up the spill', dur: 3 });
+        const room = T.rooms ? sim.rng.pick(T.rooms) : J.place;
+        tasks.push({ kind: 'spot', room, ...this.spot(room), dur: T.dur, mark: T.mark, need: T.need, label: T.label.replace('{room}', sim.world.room(room).def.streets?.v || sim.world.room(room).name) });
       }
     }
     const start = this.s.t;
     const close = start - tod(start) + hm(J.closeBy);
     this.s.job.shift = { job: jobId, start, due: Math.min(start + 300, close), tasks, i: 0, away: 0 };
-    sim.log(`Clocked in at ${r.name}. Finish by ${clock12(this.s.job.shift.due)}.`);
+    if (J.gear) {
+      const g = newItem(sim, J.gear, { order: true, job: jobId });
+      const p = this.s.actors.p;
+      if (!putInHands(sim, p, g)) {
+        placeGround(sim, g, p.room, p.x, p.y + 14);
+        sim.toast(`Your hands are full — the ${ITEMS[J.gear].name.toLowerCase()} is at your feet.`, 'warn');
+      }
+    }
+    sim.log(`Clocked in: ${J.title}. Finish by ${clock12(this.s.job.shift.due)}.`);
     sim.sfx('bell');
+  }
+
+  // A clear floor spot for a mop / litter task, preferring sidewalks outdoors.
+  spot(roomId) {
+    const sim = this.sim;
+    const r = sim.world.room(roomId);
+    if (r.kind === 'street') {
+      for (let i = 0; i < 20; i++) {
+        const pt = sim.world.randomPoint(roomId, sim.rng);
+        const onWalk = Math.abs(pt.y - 570) < 30 || Math.abs(pt.y - 830) < 30 || Math.abs(pt.x - 570) < 30 || Math.abs(pt.x - 830) < 30;
+        if (onWalk) return { x: pt.x, y: pt.y };
+      }
+    }
+    const pt = sim.world.randomPoint(roomId, sim.rng);
+    return { x: pt.x, y: pt.y };
   }
 
   currentTask() {
@@ -118,49 +162,60 @@ export class Work {
     const sim = this.sim;
     const sh = this.s.job.shift;
     const p = this.s.actors.p;
-    if (!sh || p.room !== JOBS[sh.job].place) return false;
+    if (!sh) return false;
     const task = sh.tasks[sh.i];
-    if (!task) return false;
-    if (task.kind === 'pickup' && propId === 'pass') {
-      if (p.hands) {
+    if (!task || task.room !== p.room) return false;
+    const atSpot = task.x !== undefined && Math.hypot(task.x - x, task.y - y) < 42;
+    const atProp = task.prop && task.prop === propId;
+    if (!atSpot && !atProp) return false;
+    const J = JOBS[sh.job];
+    if (task.kind === 'pickup') {
+      if (p.hands && !(this.s.items[p.hands]?.job === sh.job && ITEMS[this.s.items[p.hands].def].kind === 'job')) {
         sim.toast('Hands full. Put that down first.', 'warn');
         return true;
       }
-      const it = newItem(sim, 'plate', { order: true, owner: JOBS[sh.job].boss });
-      it.where = 'gone';
-      sim.items.putInHands(sim, p, it);
-      const boss = this.s.actors[JOBS[sh.job].boss];
-      if (boss && boss.loaded && boss.room === p.room) sim.say(boss, 'orderUp');
+      const it = newItem(sim, task.item, { order: true, job: sh.job, owner: J.boss });
+      putInHands(sim, p, it);
+      const boss = this.s.actors[J.boss];
+      if (boss && boss.loaded && boss.room === p.room && sh.job === 'diner') sim.say(boss, 'orderUp');
+      sim.sfx('pickup');
       this.advance();
       return true;
     }
-    if (task.kind === 'serve' && propId === task.prop) {
+    if (task.kind === 'deliver') {
       const it = p.hands && this.s.items[p.hands];
-      if (!it || !it.order) {
-        sim.toast('You need the order from the window.', 'warn');
+      if (!it || it.job !== sh.job || it.def !== task.item) {
+        sim.toast(`You need the ${ITEMS[task.item].name.toLowerCase()} first.`, 'warn');
         return true;
       }
       destroy(sim, it);
-      // a customer at that table says thanks
-      const prop = sim.world.prop(p.room, propId);
       for (const id in this.s.actors) {
         const a = this.s.actors[id];
-        if (a.spot && a.spot.prop === propId && a.room === p.room) {
+        if (a.room !== p.room || !a.loaded) continue;
+        if (a.spot && a.spot.prop === propId && sh.job === 'diner') {
           sim.say(a, 'thanksFood');
           a.stats.hunger = Math.min(100, a.stats.hunger + 40);
           adjustRel(sim, a, 'p', 2);
           break;
         }
+        if (sh.job === 'courier' && a.staffOf === p.room && sim.onDuty(a)) {
+          sim.sayText(a, pickOne(sim, ['Got it, thanks.', 'Sign here. Thanks.', "Tell Carmen I said hi."]));
+          adjustRel(sim, a, 'p', 1);
+          break;
+        }
       }
-      sim.sfx('plate');
+      sim.sfx(sh.job === 'diner' ? 'plate' : 'tick');
       this.advance();
       return true;
     }
-    if (task.kind === 'wipe' && propId === task.prop) {
-      sim.startTask(p, { kind: 'shift', dur: task.dur, label: task.label });
-      return true;
-    }
-    if (task.kind === 'mop' && Math.hypot(task.x - x, task.y - y) < 40) {
+    if (task.kind === 'hold' || task.kind === 'spot') {
+      if (task.need) {
+        const h = p.hands && this.s.items[p.hands];
+        if (!h || h.def !== task.need) {
+          sim.toast(`You need a ${ITEMS[task.need].name.toLowerCase()} in your hands.`, 'warn');
+          return true;
+        }
+      }
       sim.startTask(p, { kind: 'shift', dur: task.dur, label: task.label });
       return true;
     }
@@ -176,6 +231,13 @@ export class Work {
     else sim.sfx('tick');
   }
 
+  clearJobItems(jobId) {
+    for (const uid in this.s.items) {
+      const it = this.s.items[uid];
+      if (it.job === jobId) destroy(this.sim, it);
+    }
+  }
+
   finishShift() {
     const sim = this.sim;
     const sh = this.s.job.shift;
@@ -185,6 +247,7 @@ export class Work {
     const p = this.s.actors.p;
     const boss = this.s.actors[J.boss];
     const tips = sim.rng.int(0, 6) + Math.round(p.stats.reputation / 25);
+    this.clearJobItems(sh.job);
     addCash(sim, p, rank.pay + tips);
     js.hours += J.hours;
     js.shifts++;
@@ -193,22 +256,28 @@ export class Work {
     this.s.stats.shifts++;
     p.lastUse.strength = this.s.t;
     p.stats.strength = Math.min(100, p.stats.strength + 0.3);
+    if (J.roam) {
+      p.lastUse.agility = this.s.t;
+      p.stats.agility = Math.min(100, p.stats.agility + 0.3);
+    }
     if (boss) {
       remember(sim, boss, { type: 'shift', who: 'p' });
       adjustRel(sim, boss, 'p', 5);
-      if (boss.loaded && boss.room === p.room) sim.sayText(boss, `Good shift. Here's ${'$' + (rank.pay + tips)}.`);
+      if (boss.loaded && boss.room === p.room) sim.sayText(boss, `Good shift. Here's $${rank.pay + tips}.`);
     }
     sim.repChange(1, 'finished a shift', p.room);
-    sim.log(`Shift done. Paid $${rank.pay} + $${tips} tips. ${js.hours} hours on the books.`, 'good');
+    sim.log(`Shift done (${J.title}). Paid $${rank.pay} + $${tips} tips. ${js.hours} hours on the books.`, 'good');
     sim.sfx('cash');
-    // promotion
     const next = J.ranks[js.rank + 1];
     if (next && js.hours >= next.hours && this.meetsFloor(next.floor).length === 0) {
       js.rank++;
       sim.log(`Promoted to ${next.title}. Pay is now $${next.pay} a shift.`, 'good');
       sim.toast(`Promoted: ${next.title}!`, 'good');
       sim.repChange(2, 'got promoted', p.room);
+    } else if (next && js.hours >= next.hours) {
+      sim.log(`${boss ? boss.short : 'The boss'} would promote you, but you need ${this.meetsFloor(next.floor).join(', ')}.`);
     }
+    sim.wantSave = true;
   }
 
   failShift(why) {
@@ -220,13 +289,12 @@ export class Work {
     this.s.job.shift = null;
     const js = this.jobState(sh.job);
     js.lastShiftDay = dayOf(sh.start);
-    const p = this.s.actors.p;
-    if (p.hands && this.s.items[p.hands]?.order) destroy(sim, this.s.items[p.hands]);
+    this.clearJobItems(sh.job);
     if (boss) {
       remember(sim, boss, { type: 'quit', who: 'p' });
       adjustRel(sim, boss, 'p', -10);
     }
-    sim.repChange(-2, 'walked off a shift', p.room);
+    sim.repChange(-2, 'walked off a shift', sim.player.room);
     sim.log(`Shift lost: ${why}`, 'bad');
     sim.toast(`Shift lost — ${why}`, 'bad');
   }
@@ -251,6 +319,7 @@ export class Work {
     const s = this.s;
     const F = FAVORS[id];
     const rec = { id, giver: F.giver, status: 'active', start: s.t };
+    const p = s.actors.p;
     if (F.kind === 'quiet') {
       const nextMidnight = s.t - tod(s.t) + DAY;
       rec.from = nextMidnight + hm(F.window[0]);
@@ -267,8 +336,18 @@ export class Work {
       placeGround(sim, it, F.spawn.room, pt.x, pt.y);
       rec.uid = it.uid;
     }
+    if (F.kind === 'courier') {
+      const it = newItem(sim, F.item, { owner: F.giver, favor: id });
+      if (!putInHands(sim, p, it)) placeGround(sim, it, p.room, p.x, p.y + 14);
+      rec.uid = it.uid;
+      if (F.reward.cash) {
+        const giver = s.actors[F.giver];
+        giver.cash = Math.max(0, giver.cash - F.reward.cash);
+        addCash(sim, p, F.reward.cash);
+      }
+    }
     s.favors.push(rec);
-    sim.log(`Favor for ${s.actors[F.giver].short}: ${F.short}${rec.due ? ` (by ${clock12(rec.due)})` : ''}.`);
+    sim.log(`Favor for ${s.actors[F.giver].short}: ${F.short}${F.kind !== 'quiet' ? ` (by ${clock12(rec.due)})` : ''}.`);
     sim.sfx('tick');
   }
 
@@ -276,23 +355,37 @@ export class Work {
   tryDeliver(npc, it) {
     const sim = this.sim;
     const s = this.s;
-    const rec = s.favors.find((f) => f.giver === npc.id && f.status === 'active' && FAVORS[f.id].item === it.def);
+    if (it.job) return null;
+    const rec = s.favors.find((f) => {
+      if (f.status !== 'active') return false;
+      const F = FAVORS[f.id];
+      if (F.kind === 'courier') return F.to === npc.id && it.favor === f.id;
+      return f.giver === npc.id && F.item === it.def && (F.kind !== 'fetch' || it.favor === f.id || true);
+    });
     if (!rec) return null;
-    if (it.order) return null; // diner orders belong to the job
     const F = FAVORS[rec.id];
     giveNpc(sim, npc, it);
     rec.status = 'done';
     s.favorCooldown[rec.id] = s.t + F.cooldown * DAY;
-    if (F.reward.cash) {
-      npc.cash = Math.max(0, npc.cash - F.reward.cash);
-      addCash(sim, s.actors.p, F.reward.cash);
+    const giver = s.actors[F.giver];
+    if (F.kind === 'courier') {
+      adjustRel(sim, npc, 'p', 4);
+      remember(sim, npc, { type: 'brought', who: 'p', item: it.def });
+      adjustRel(sim, giver, 'p', F.reward.rel);
+      remember(sim, giver, { type: 'helped', who: 'p' });
+    } else {
+      if (F.reward.cash) {
+        npc.cash = Math.max(0, npc.cash - F.reward.cash);
+        addCash(sim, s.actors.p, F.reward.cash);
+      }
+      adjustRel(sim, npc, 'p', F.reward.rel);
+      remember(sim, npc, { type: 'brought', who: 'p', item: it.def });
     }
-    adjustRel(sim, npc, 'p', F.reward.rel);
-    remember(sim, npc, { type: 'brought', who: 'p', item: it.def });
     sim.repChange(1, 'came through on a favor', npc.room);
     s.stats.favors++;
-    sim.log(`Favor done for ${npc.short}.${F.reward.cash ? ` +$${F.reward.cash}.` : ''}`, 'good');
+    sim.log(`Favor done for ${giver.short}.${F.reward.cash && F.kind !== 'courier' ? ` +$${F.reward.cash}.` : ''}`, 'good');
     sim.sfx('cash');
+    sim.wantSave = true;
     return F.thanks;
   }
 
@@ -300,14 +393,14 @@ export class Work {
     const s = this.s;
     const m = tod(s.t);
     if (!inWindow(m, hm('00:00'), hm('06:00'))) return;
-    const nearHome = room === 'apt_2b' || (room === 'st_pecan' && y < 640 && x < 560);
+    const nearHome = room === 'apt_2b' || room === 'bayou_hall' || (room === 'st_pecan' && y < 640 && x < 560);
     if (!nearHome) return;
     for (const f of s.favors) if (f.status === 'active' && FAVORS[f.id].kind === 'quiet' && s.t >= f.from) f.noisy = true;
     // neighbours at home hear it even without a favor
     const day = dayOf(s.t);
     for (const id in s.actors) {
       const a = s.actors[id];
-      if (a.kind !== 'npc' || !a.neighbor || a.room !== a.home) continue;
+      if (a.kind !== 'npc' || !(a.neighbor || a.landlord) || a.room !== a.home) continue;
       if (a._loudDay === day) continue;
       a._loudDay = day;
       remember(this.sim, a, { type: 'loud', who: 'p' });
@@ -319,12 +412,12 @@ export class Work {
   update() {
     const sim = this.sim;
     const s = this.s;
-    // shift deadline / walking off
     const sh = s.job.shift;
     if (sh) {
       const p = s.actors.p;
+      const J = JOBS[sh.job];
       if (s.t > sh.due) this.failShift('ran past the deadline');
-      else if (p.room !== JOBS[sh.job].place) {
+      else if (!J.roam && p.room !== J.place) {
         sh.away += sim.lastDm;
         if (sh.away > 25) this.failShift('walked out mid-shift');
       } else sh.away = 0;
@@ -353,7 +446,7 @@ export class Work {
       if (s.t > f.due) {
         f.status = 'failed';
         s.favorCooldown[f.id] = s.t + F.cooldown * DAY;
-        remember(sim, giver, { type: 'welched', who: 'p', task: F.short.toLowerCase().replace(/^(bring|find|keep)/, (w) => w) });
+        remember(sim, giver, { type: 'welched', who: 'p', task: F.short.charAt(0).toLowerCase() + F.short.slice(1) });
         adjustRel(sim, giver, 'p', F.fail.rel);
         sim.repChange(-2, 'welched on a favor', giver.room);
         sim.log(`You welched on ${giver.short}: ${F.short.toLowerCase()}.`, 'bad');

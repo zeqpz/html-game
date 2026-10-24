@@ -10,6 +10,7 @@ import { Fights } from './fight.js';
 import { Work } from './work.js';
 import { Police } from './police.js';
 import { updateBoard, pin, unpin } from './board.js';
+import { Money } from './money.js';
 import { makePlayer, makeNpc, scratch, playerNeeds, walkSpeed, sprintMul, moveBody, staminaTick, faceToward, FACE_VEC, schedNow } from './actors.js';
 import { relV, adjustRel, remember, setTag, displayTag, witnesses, meet } from './memory.js';
 import { clamp, hm, tod, dayOf, inWindow, DAY, clock12, rectDist, rectHit, hashStr, weekday } from './util.js';
@@ -35,6 +36,7 @@ export class Sim {
     this.fight = new Fights(this);
     this.work = new Work(this);
     this.police = new Police(this);
+    this.money = new Money(this);
     this.events = [];
     this.input = { mx: 0, my: 0, sprint: false };
     this.edges = {};
@@ -57,7 +59,7 @@ export class Sim {
       actors: {}, items: {}, conts: {}, rooms: {}, favors: [], favorCooldown: {},
       job: { jobs: {}, shift: null }, log: [], uid: 1, flags: {}, lastFight: null,
       stats: { fightsStarted: 0, fightsWon: 0, shifts: 0, favors: 0, knockouts: 0 },
-      lastDawn: 1, lastHour: 0, board: [],
+      lastDawn: 1, lastHour: 0, board: [], leases: {},
     };
     const p = makePlayer(name, look || defaultLook());
     p.x = 110;
@@ -73,7 +75,7 @@ export class Sim {
     items.makeCont(sim, p.pockets, 4, 2, 'p');
     for (const def of NPCS) {
       const n = makeNpc(def);
-      n.room = schedNow(n, s.t).room;
+      n.room = schedNow(n, s.t).room || n.home;
       s.actors[n.id] = n;
       if (n.neighbor) setTag(n, 'p', 'neighbor');
     }
@@ -290,19 +292,22 @@ export class Sim {
   }
 
   canEnter(door) {
-    const p = this.player;
-    if (door.npcOnly) return { ok: false, quiet: true };
+    if (door.npcOnly) {
+      if (door.vacant) return { ok: false, text: `Unit ${door.plate} is vacant. Ask Mr. Boudreaux about leasing it.` };
+      if (door.plate) return { ok: false, text: `Unit ${door.plate}. Somebody else's place.` };
+      return { ok: false, quiet: true };
+    }
     const def = ROOMS[door.to];
     if (def && def.hours && !this.isOpen(door.to)) {
       const js = this.s.job.jobs[Object.keys(JOBS).find((k) => JOBS[k].place === door.to)];
       if (!(js && js.hired)) return { ok: false, text: `${def.name} is closed. Opens at ${clock12(hm(def.hours[0]))}.` };
     }
-    if (def && def.lease && !this.leaseOk(def.lease)) return { ok: false, text: 'The door won\'t open. Rent is overdue.' };
+    if (door.lease && !this.leaseOk(door.lease)) return { ok: false, text: `The lock won't turn. Rent is overdue — $${this.money.lease(door.lease).rent} in the drop box.` };
     return { ok: true };
   }
 
-  leaseOk() {
-    return true;
+  leaseOk(id) {
+    return this.money.leaseOk(id);
   }
 
   changeRoom(to, spawn, how = 'door') {
@@ -377,6 +382,7 @@ export class Sim {
       this.ai.abstract(chunk);
       playerNeeds(this, this.player, chunk);
       this.work.update();
+      this.money.update();
       updateBoard(this);
       this.clockEvents();
       this.lastDm = dm;
@@ -657,16 +663,18 @@ export class Sim {
       if (dot < 0.1 && d > 22) continue;
       consider(d * 0.6 - dot * 18, { type: 'npc', id, label: a.short });
     }
-    // shift tasks that aren't props (spills)
+    // shift tasks marked on the floor (spills, litter, a dropped plate)
     const task = this.work.currentTask();
-    if (task && task.kind === 'mop' && p.room === JOBS[this.s.job.shift.job].place) {
+    if (task && task.x !== undefined && task.room === p.room) {
       const d = Math.hypot(task.x - p.x, task.y - p.y);
-      if (d < 40) consider(d - 5, { type: 'task', label: 'Mop the spill' });
+      if (d < 40) consider(d - 15, { type: 'task', label: task.label });
     }
     // props
     const r = this.world.room(p.room);
     for (const prop of r.props) {
-      if (!prop.use && !(task && task.prop === prop.id)) continue;
+      const isTaskProp = task && task.room === p.room && task.prop === prop.id;
+      if (!prop.use && !isTaskProp) continue;
+      if (prop.use === 'job' && !isTaskProp) continue;
       if (p.spot && p.spot.prop === prop.id) continue;
       const d = rectDist(prop, p.x, p.y);
       const lim = prop.wall ? 30 : 26;
@@ -677,15 +685,14 @@ export class Sim {
       const dy = cy - p.y;
       const dd = Math.hypot(dx, dy) || 1;
       const dot = (dx * fx + dy * fy) / dd;
-      const isTask = task && task.prop === prop.id;
-      consider(d + 8 - dot * 6 + (prop.use === 'sit' && !isTask ? 26 : 0) - (isTask ? 20 : 0), { type: 'prop', id: prop.id, label: this.propLabel(prop) });
+      consider(d + 8 - dot * 6 + (prop.use === 'sit' && !isTaskProp ? 26 : 0) - (isTaskProp ? 20 : 0), { type: 'prop', id: prop.id, label: this.propLabel(prop) });
     }
     return best;
   }
 
   propLabel(prop) {
     const task = this.work.currentTask();
-    if (task && task.prop === prop.id) return task.label;
+    if (task && task.room === this.player.room && task.prop === prop.id) return task.label;
     switch (prop.use) {
       case 'sleep': return 'Sleep';
       case 'sit': return `Sit · ${prop.label}`;
@@ -701,6 +708,14 @@ export class Sim {
       case 'jukebox': return 'Jukebox ($1)';
       case 'posting': return `Read: ${prop.label}`;
       case 'desk': return 'Front desk';
+      case 'rent': return `Rent drop box`;
+      case 'bank': return 'Teller window';
+      case 'atm': return 'Use the ATM';
+      case 'clinic': return 'Reception';
+      case 'vending': return 'Vending machine';
+      case 'police': return 'Front desk';
+      case 'license': return 'Permits window';
+      case 'terminal': return 'Market terminal';
       case 'job': return prop.label;
       default: return prop.label || prop.use;
     }
@@ -733,6 +748,9 @@ export class Sim {
     const shop = this.shopFor(npc);
     if (shop) acts.push({ id: 'buy', label: 'Buy' });
     if (npc.sells || npc.personality === 'sly') acts.push({ id: 'trade', label: 'Trade' });
+    if (npc.landlord) acts.push({ id: 'rent', label: 'Pay rent' });
+    if (npc.staffOf === 'bank' && this.onDuty(npc)) acts.push({ id: 'banking', label: 'Banking' });
+    if (npc.staffOf === 'precinct' && this.onDuty(npc)) acts.push({ id: 'desk', label: 'Fines & paperwork' });
     const prop = this.propBehind(npc);
     if (prop) acts.push({ id: 'useprop', label: this.propLabel(prop), prop: prop.id });
     acts.push({ id: 'threaten', label: 'Threaten' });
@@ -757,7 +775,7 @@ export class Sim {
     let best = null;
     let bd = 46;
     for (const prop of r.props) {
-      if (!prop.use || prop.use === 'buy' || prop.use === 'posting') continue;
+      if (!prop.use || ['buy', 'posting', 'job', 'bank', 'clinic', 'police', 'license', 'rent'].includes(prop.use)) continue;
       if (npc.spot && npc.spot.prop === prop.id) continue;
       const d = rectDist(prop, npc.x, npc.y);
       if (d < bd) {
@@ -772,7 +790,15 @@ export class Sim {
     const p = this.player;
     const it = this.s.items[p.hands];
     if (!it) return;
+    if (it.job || it.favor) {
+      this.toast("That's not yours to use — it's for somebody.", 'warn');
+      return;
+    }
     if (!items.useItem(this, p, it)) this.toast(`Can't use the ${ITEMS[it.def].name.toLowerCase()} like that.`, 'warn');
+  }
+
+  staffHere(room) {
+    return Object.values(this.s.actors).find((a) => a.staffOf === room && this.onDuty(a)) || null;
   }
 
   useProp(prop) {
@@ -858,6 +884,54 @@ export class Sim {
         this.toast('That\'s for staff on shift.', 'warn');
         break;
       }
+      case 'rent': {
+        this.ui.modal = { type: 'rent', lease: 'apt_2b' };
+        break;
+      }
+      case 'bank': {
+        const staff = this.staffHere(p.room);
+        if (!staff) {
+          this.toast('The window is closed. Try the ATM next door.', 'warn');
+          return;
+        }
+        this.ui.modal = { type: 'bank', where: 'teller', npc: staff.id };
+        break;
+      }
+      case 'atm': {
+        this.ui.modal = { type: 'bank', where: 'atm', card: true };
+        this.sfx('card');
+        break;
+      }
+      case 'clinic': {
+        const staff = this.staffHere(p.room);
+        if (!staff) {
+          this.toast('Nobody at reception.', 'warn');
+          return;
+        }
+        this.ui.modal = { type: 'shop', shop: 'clinic', npc: staff.id };
+        break;
+      }
+      case 'vending': {
+        this.ui.modal = { type: 'shop', shop: 'vending', npc: null };
+        break;
+      }
+      case 'police': {
+        const staff = this.staffHere(p.room);
+        if (!staff) {
+          this.toast('Nobody at the desk.', 'warn');
+          return;
+        }
+        this.ui.modal = { type: 'police', npc: staff.id };
+        break;
+      }
+      case 'license': {
+        this.ui.modal = { type: 'license' };
+        break;
+      }
+      case 'terminal': {
+        this.ui.modal = { type: 'terminal' };
+        break;
+      }
       default:
         break;
     }
@@ -876,6 +950,12 @@ export class Sim {
       case 'sell': return this.sellToNpc(a.npc, a.uid);
       case 'pin': return pin(this, a.id, a.n);
       case 'unpin': return unpin(this, a.i);
+      case 'deposit': return this.cmdResult(this.money.deposit(a.amt, a.where));
+      case 'withdraw': return this.cmdResult(this.money.withdraw(a.amt, a.where));
+      case 'pay_rent': return this.cmdResult(this.money.payRent(a.lease || 'apt_2b'));
+      case 'pay_fines': return this.cmdResult(this.money.payFines());
+      case 'pay_bills': return this.cmdResult(this.money.payBills());
+      case 'service': return this.service(a.shop, a.id, a.npc);
       case 'sleep': return this.sleep(a.hours);
       case 'apply': {
         const r = this.work.apply(a.job);
@@ -886,6 +966,7 @@ export class Sim {
       case 'use_item': {
         const it = this.s.items[a.uid];
         if (!it) return;
+        if (it.job || it.favor) return this.toast("That's not yours to use — it's for somebody.", 'warn');
         if (!items.useItem(this, p, it)) this.toast("Can't use that here.", 'warn');
         return;
       }
@@ -967,6 +1048,15 @@ export class Sim {
       }
       case 'trade':
         this.ui.modal = { type: 'trade', npc: id };
+        return;
+      case 'rent':
+        this.ui.modal = { type: 'rent', lease: npc.landlord, npc: id };
+        return;
+      case 'banking':
+        this.ui.modal = { type: 'bank', where: 'teller', npc: id };
+        return;
+      case 'desk':
+        this.ui.modal = { type: 'police', npc: id };
         return;
       case 'useprop': {
         const prop = this.world.prop(p.room, a.prop);
@@ -1057,6 +1147,32 @@ export class Sim {
       const P = npc.personality;
       this.sayText(npc, P === 'tired' ? 'Leave me alone!' : 'You don\'t scare me.');
       if (relV(npc, 'p') < -20 && this.rng.chance(0.5)) this.fight.squareUp(npc, p, true);
+    }
+  }
+
+  cmdResult(r) {
+    if (r && r.text) this.toast(r.text, r.ok ? 'good' : 'warn');
+    return r;
+  }
+
+  service(shopId, id, npcId) {
+    const p = this.player;
+    const shop = SHOPS[shopId];
+    const sv = shop && (shop.services || []).find((x) => x.id === id);
+    if (!sv) return;
+    if (id === 'treat') {
+      if (p.stats.health >= 98) return this.cmdResult({ ok: false, text: "You're fine. Go home." });
+      if (!items.spendCash(this, p, sv.price)) return this.cmdResult({ ok: false, text: `Treatment is $${sv.price}.` });
+      this.ui.modal = null;
+      this.s.t += 60;
+      this.ai.abstract(60);
+      p.stats.health = 100;
+      p.stats.mind = clamp(p.stats.mind + 6, 0, 100);
+      const n = npcId && this.s.actors[npcId];
+      if (n) adjustRel(this, n, 'p', 2);
+      this.emit('respawn', {});
+      this.sfx('cash');
+      this.log(`${n ? n.short : 'A nurse'} cleans you up. An hour later you walk out feeling human. (-$${sv.price})`, 'good');
     }
   }
 
@@ -1207,9 +1323,9 @@ export class Sim {
     this.changeRoom(roomId, spot, 'fade');
     let bill = '';
     if (hospital) {
-      const cost = Math.min(p.bank, 120);
-      p.bank -= cost;
-      if (cost) bill = ` The bill ($${cost}) came out of the bank.`;
+      const b = this.money.bill(120, "St. Ann's ER");
+      if (b.fromBank) bill += ` $${b.fromBank} of the $120 bill came out of the bank.`;
+      if (b.left) bill += ` You owe St. Ann's $${b.left}.`;
     }
     const where = hospital ? 'a hospital bed' : 'your own bed somehow';
     const lost = fell && fell.items.length ? ` Whatever you carried (${fell.items.join(', ')}) is on the ground where you fell${fell.room ? ` — ${this.world.room(fell.room).name}` : ''}.` : '';
@@ -1245,6 +1361,27 @@ export class Sim {
 function migrate(s) {
   // v1 is current; future versions upgrade older blobs here.
   s.v = SAVE_VERSION;
+  // The city grows between builds: add people, containers and fields that
+  // older saves don't have yet, without touching anything they do have.
+  s.leases = s.leases || {};
+  s.favorCooldown = s.favorCooldown || {};
+  for (const def of NPCS) {
+    if (s.actors[def.id]) continue;
+    const n = makeNpc(def);
+    n.room = schedNow(n, s.t).room || n.home;
+    s.actors[def.id] = n;
+    if (n.neighbor) setTag(n, 'p', 'neighbor');
+  }
+  for (const id in ROOMS) {
+    const def = ROOMS[id];
+    if (!def.containers) continue;
+    for (const k in def.containers) {
+      const cid = `${id}:${k}`;
+      if (!s.conts[cid]) s.conts[cid] = { id: cid, w: def.containers[k].w, h: def.containers[k].h, items: [], owner: id };
+    }
+  }
+  const p = s.actors.p;
+  if (p.room === 'st_pecan' && p.y < 480 && p.x < 520) p.y = 520; // old Bayou Arms side door is gone
 }
 
 export function defaultLook() {

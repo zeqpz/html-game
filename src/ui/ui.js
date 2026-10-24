@@ -376,7 +376,7 @@ export class UI {
     const p = sim.player;
     let key = '';
     if (m) {
-      key = JSON.stringify(m) + '|' + cashOnBody(sim, p) + '|' + (p.hands || '');
+      key = JSON.stringify(m) + '|' + cashOnBody(sim, p) + '|' + (p.hands || '') + '|' + p.bank + '|' + (p.fines || 0) + '|' + (p.bills || 0) + '|' + JSON.stringify(sim.s.leases || {});
       if (m.type === 'cont') key += '|' + this.invSig(sim, [m.cont, p.pockets]);
       if (m.type === 'posting') key += '|' + JSON.stringify(sim.s.job.jobs[m.job] || {});
     }
@@ -394,12 +394,67 @@ export class UI {
       const npc = m.npc ? sim.s.actors[m.npc] : null;
       card.append(el('h2', {}, shop.name), el('p', { class: 'sub' }, npc ? `${npc.short} is behind the counter.` : 'Self-serve. Leave the money in the jar.'));
       const list = el('div', { class: 'shoplist' });
+      for (const sv of shop.services || []) {
+        list.append(el('button', { class: 'hot shopitem service', onclick: () => sim.cmd('service', { shop: m.shop, id: sv.id, npc: m.npc }) },
+          el('span', { class: 'svicon' }, '✚'), el('span', {}, el('b', {}, sv.label), el('small', {}, sv.desc)), el('em', {}, `$${sv.price}`)));
+      }
       shop.items.forEach(([id, price], i) => {
         const d = ITEMS[id];
         list.append(el('button', { class: 'hot shopitem', onclick: () => sim.cmd('buy', { shop: m.shop, item: id, npc: m.npc }) },
           itemCanvas(id, 34), el('span', {}, el('b', {}, d.name), el('small', {}, d.desc)), el('em', {}, `$${price}`)));
       });
       card.append(list, el('p', { class: 'foot' }, `You have ${money(cashOnBody(sim, p))}.`));
+      if (m.shop === 'clinic' && (p.bills || 0) > 0) card.append(el('button', { class: 'wide', onclick: () => sim.cmd('pay_bills') }, `Pay toward your bill ($${p.bills} owed)`));
+    } else if (m.type === 'bank') {
+      card.classList.add('bankcard');
+      const atm = m.where === 'atm';
+      card.append(el('h2', {}, atm ? 'Gulf Coast Savings · ATM' : 'Gulf Coast Savings'));
+      const fresh = atm && this.atmPlayed !== m;
+      this.atmPlayed = m;
+      if (atm) card.append(el('div', { class: `atmanim${fresh ? ' play' : ''}` }, el('div', { class: 'slot' }), el('div', { class: 'card' }, el('i'), el('b', {}, p.name.toUpperCase())), el('div', { class: 'pin' }, '• • • •')));
+      const body = el('div', { class: fresh ? 'bankbody delayed' : 'bankbody' });
+      const room = sim.money.depositRoom();
+      body.append(el('div', { class: 'kv' },
+        el('span', {}, 'Balance'), el('b', { class: 'good' }, money(p.bank)),
+        el('span', {}, 'Cash on you'), el('b', {}, money(cashOnBody(sim, p))),
+        el('span', {}, 'Deposit room this week'), el('b', {}, `${money(room)} of $1,000`),
+      ));
+      const amt = el('input', { type: 'number', min: 1, step: 1, placeholder: 'Amount', class: 'amt' });
+      const row = (label, kind, vals) => {
+        const r = el('div', { class: 'amtrow' }, el('span', {}, label));
+        for (const v of vals) r.append(el('button', { class: 'hot', onclick: () => sim.cmd(kind, { amt: v === 'all' ? (kind === 'deposit' ? cashOnBody(sim, p) : p.bank) : v, where: m.where }) }, v === 'all' ? 'All' : `$${v}`));
+        r.append(el('button', { onclick: () => sim.cmd(kind, { amt: Number(amt.value) || 0, where: m.where }) }, 'Custom'));
+        return r;
+      };
+      body.append(row('Deposit', 'deposit', [10, 20, 50, 100, 'all']), row('Withdraw', 'withdraw', [10, 20, 50, 100, 'all']), amt);
+      const log = p.bankLog.slice(-6).reverse();
+      body.append(el('h3', {}, 'Recent activity'), log.length
+        ? el('div', { class: 'banklog' }, ...log.map((l) => el('div', {}, el('small', {}, `${weekday(l.t)} ${clock12(l.t)}`), el('span', {}, l.kind), el('b', { class: l.kind === 'deposit' ? 'good' : '' }, `${l.kind === 'deposit' ? '+' : '−'}$${l.amt}`))))
+        : el('p', { class: 'sub' }, 'No transactions yet.'));
+      card.append(body);
+    } else if (m.type === 'rent') {
+      const L = sim.money.lease(m.lease || 'apt_2b');
+      card.append(el('h2', {}, 'Rent · Bayou Arms Unit 2B'));
+      card.append(el('div', { class: 'kv' },
+        el('span', {}, 'Weekly rent'), el('b', {}, money(L.rent)),
+        el('span', {}, 'Paid through'), el('b', { class: L.overdue ? 'bad' : 'good' }, `${weekday(L.due)} ${clock12(L.due)}${L.overdue ? ' — OVERDUE' : ''}`),
+        el('span', {}, 'Cash on you'), el('b', {}, money(cashOnBody(sim, p))),
+      ));
+      card.append(el('p', { class: 'sub' }, L.overdue ? 'Your door won\'t open until you catch up. Everything inside is still there.' : 'Rent is due every Sunday night. You can pay up to two weeks ahead.'));
+      card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('pay_rent', { lease: m.lease || 'apt_2b' }) }, `Pay ${money(L.rent)}`));
+    } else if (m.type === 'police') {
+      const npc = sim.s.actors[m.npc];
+      card.append(el('h2', {}, '5th Precinct · Front desk'), el('p', { class: 'sub' }, `${npc.short} looks up from a stack of reports.`));
+      card.append(el('div', { class: 'kv' },
+        el('span', {}, 'Fines owed'), el('b', { class: (p.fines || 0) > 0 ? 'bad' : 'good' }, money(p.fines || 0)),
+        el('span', {}, 'Heat'), el('b', {}, p.heat < 10 ? 'Nobody\'s looking at you' : p.heat < 40 ? 'Your name has come up' : p.heat < 60 ? 'Officers know your face' : 'You get stopped on sight'),
+      ));
+      if ((p.fines || 0) > 0) card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('pay_fines') }, `Pay fines (${money(Math.min(p.fines, cashOnBody(sim, p)))})`));
+      card.append(el('p', { class: 'sub' }, 'Permits and license tests are at the window on the right.'));
+    } else if (m.type === 'license') {
+      card.append(el('h2', {}, 'Permits & tests'), el('p', {}, 'Driver and firearm permits are processed here. The test schedule is posted soon — check back.'));
+    } else if (m.type === 'terminal') {
+      card.append(el('h2', {}, 'Market terminal'), el('p', {}, 'A screen of numbers climbing and falling. You have nothing to sell here yet.'));
     } else if (m.type === 'trade') {
       const npc = sim.s.actors[m.npc];
       card.append(el('h2', {}, `Trade with ${npc.short}`));
@@ -672,6 +727,8 @@ export class UI {
         el('div', { class: 'kv' },
           el('span', {}, 'Cash'), el('b', {}, money(cashOnBody(sim, p))),
           el('span', {}, 'Bank'), el('b', {}, money(p.bank)),
+          el('span', {}, 'Rent'), el('b', {}, (() => { const L = sim.money.lease('apt_2b'); return L.overdue ? `OVERDUE ($${L.rent})` : `paid through ${weekday(L.due)}`; })()),
+          el('span', {}, 'Owed'), el('b', {}, `${money(p.fines || 0)} fines · ${money(p.bills || 0)} hospital`),
           el('span', {}, 'Heat'), el('b', {}, Math.round(p.heat)),
           el('span', {}, 'Licenses'), el('b', {}, Object.keys(p.licenses).filter((k) => p.licenses[k]).join(', ') || 'none'),
           el('span', {}, 'Work'), el('b', {}, jobs.join(' · ') || 'none yet'),

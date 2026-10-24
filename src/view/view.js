@@ -347,18 +347,60 @@ export class View {
 
   drawShiftMarkers(ctx, sim, room) {
     const sh = sim.s.job.shift;
-    if (!sh || JOBS[sh.job].place !== room.id) return;
+    if (!sh) return;
     const task = sim.work.currentTask();
     if (!task) return;
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 5);
-    if (task.kind === 'mop') {
-      ellipse(ctx, task.x, task.y, 22, 11, 'rgba(120,90,40,0.55)');
-      ellipse(ctx, task.x - 5, task.y - 2, 10, 4, 'rgba(255,255,255,0.18)');
+    const arrow = (ax, ay) => {
+      ctx.fillStyle = '#ffd23f';
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ax - 8, ay - 10);
+      ctx.lineTo(ax + 8, ay - 10);
+      ctx.lineTo(ax, ay);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    };
+    if (task.room !== room.id) {
+      // point at the way out toward the task
+      const door = sim.world.nextDoor(room.id, task.room);
+      if (!door) return;
+      if (door.edge) {
+        const at = door.at;
+        arrow(clamp(at.x, 40, room.w - 40), clamp(at.y, 60, room.h - 20) - 30 - pulse * 6);
+      } else {
+        const z = door.zone;
+        ctx.strokeStyle = `rgba(255,210,63,${0.45 + pulse * 0.5})`;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(z.x - 2, z.y - 2, z.w + 4, z.h + 4);
+        arrow(z.x + z.w / 2, z.y - 26 - pulse * 6);
+      }
+      return;
+    }
+    if (task.x !== undefined) {
+      if (task.mark === 'litter') {
+        for (let k = 0; k < 6; k++) {
+          ctx.fillStyle = ['#d9d4c8', '#c62828', '#3d6db5', '#e8b923', '#7cb342', '#fff'][k];
+          ctx.fillRect(task.x - 14 + ((k * 13) % 26), task.y - 6 + ((k * 7) % 12), 5, 3);
+        }
+        ellipse(ctx, task.x, task.y, 16, 7, 'rgba(90,80,60,0.25)');
+      } else if (task.mark === 'plate') {
+        ctx.save();
+        ctx.translate(task.x, task.y);
+        drawItem(ctx, 'plates', 18);
+        ctx.restore();
+      } else {
+        ellipse(ctx, task.x, task.y, 22, 11, 'rgba(120,90,40,0.55)');
+        ellipse(ctx, task.x - 5, task.y - 2, 10, 4, 'rgba(255,255,255,0.18)');
+      }
       ctx.strokeStyle = `rgba(255,210,63,${0.5 + pulse * 0.5})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(task.x, task.y, 30 + pulse * 4, 15 + pulse * 2, 0, 0, Math.PI * 2);
       ctx.stroke();
+      arrow(task.x, task.y - 30 - pulse * 6);
     } else {
       const prop = sim.world.prop(room.id, task.prop);
       if (prop) {

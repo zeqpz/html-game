@@ -547,7 +547,7 @@ export class UI {
         c.scale(2, 2);
         c.translate(60, 30);
         drawCar(c, 0, this.dealerColor, null, false, false, { len: M.len, wid: M.wid, pickup: M.bed });
-        grid.append(el('div', { class: 'carcard' }, cv, el('b', {}, M.name), el('small', {}, `Top ${Math.round((M.top / 40) * 2.237)} mph · ${M.grip > 8 ? 'sharp' : M.grip > 7.2 ? 'steady' : 'loose'} handling`),
+        grid.append(el('div', { class: 'carcard' }, cv, el('b', {}, M.name), el('small', {}, `Top ${Math.round((M.top / 20) * 2.237)} mph · ${M.grip > 8 ? 'sharp' : M.grip > 7.2 ? 'steady' : 'loose'} handling`),
           el('button', { class: 'hot primary', onclick: () => sim.cmd('buy_car', { model: id, color: this.dealerColor }) }, `Buy · $${M.price.toLocaleString()}`)));
       }
       card.append(grid, el('p', { class: 'foot' }, `Bank ${money(sim.player.bank)} + cash ${money(cashOnBody(sim, sim.player))}. You'll need a driver license to drive it off.`));
@@ -730,7 +730,7 @@ export class UI {
     }
     box.classList.remove('hidden');
     const M = MODELS[car.model];
-    const mph = Math.round((sim.cars.speed(car) / 40) * 2.237);
+    const mph = Math.round((sim.cars.speed(car) / 20) * 2.237); // the city is drawn small; this reads true to the feel
     const fuel = car.fuel / M.tank;
     const d = car.dmg;
     const col = (v) => (v > 0.66 ? '#ff6b5e' : v > 0.33 ? '#ffb36b' : '#7be495');

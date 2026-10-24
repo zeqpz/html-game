@@ -66,6 +66,7 @@ export class View {
 
   roomParts(room) {
     let p = this.parts.get(room.id);
+    if (p && p.ver !== (room.furnVer || 0)) p = null; // furniture moved
     if (!p) {
       const sprites = [];
       const canopies = [];
@@ -83,7 +84,7 @@ export class View {
         if (cp) canopies.push({ ...cp, f });
       }
       const poles = (room.features || []).filter((f) => f.type === 'pole');
-      p = { sprites, canopies, poles };
+      p = { sprites, canopies, poles, ver: room.furnVer || 0 };
       this.parts.set(room.id, p);
     }
     return p;

@@ -1184,6 +1184,16 @@ export class Sim {
         this.ui.modal = null;
         return;
       case 'mug_reply': return this.street.mugReply(a.choice);
+      case 'set_look': {
+        if (!a.look || typeof a.look !== 'object') return null;
+        const keep = ['skin', 'build', 'height', 'age', 'face', 'eyes', 'eyeColor', 'brows', 'nose', 'mouth', 'freckles', 'scar'];
+        const look = { ...a.look };
+        for (const k of keep) if (p.look[k] !== undefined) look[k] = p.look[k];
+        p.look = look;
+        this.log('You change in front of the closet mirror. Looking sharp.', 'good');
+        this.wantSave = true;
+        return { ok: true };
+      }
       case 'npc_action': return this.npcAction(a.id, a.action, a);
       case 'talk_tone': talk.chooseTone(this, a.tone); return;
       case 'talk_close': talk.closeTalk(this); return;

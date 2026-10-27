@@ -4,6 +4,7 @@ import { paintInterior, paintStreet, RES_IN, RES_ST } from './paint.js';
 import { propParts, featureParts, canopyPart, drawItem, drawCar } from './sprites.js';
 import { MODELS } from '../data/cars.js';
 import { drawPerson } from './people.js';
+import { SIGNAL_POLES, drawSignalPole, drawPuddles, Pigeons } from './dressing.js';
 import { makeCanvas, shade, alpha, fillRR, circle, ellipse, line, text } from './gfx.js';
 import { scratch } from '../sim/actors.js';
 import { ITEMS } from '../data/items.js';
@@ -28,6 +29,7 @@ export class View {
     this.floats = [];
     this.particles = [];
     this.tracers = [];
+    this.pigeons = new Pigeons();
     this.fade = 0;
     this.shake = 0;
     this.flash = 0;
@@ -246,6 +248,11 @@ export class View {
     this.updateSkids(sim, dt);
     this.drawSkids(ctx, visible);
     for (const v of visible) this.drawGround(ctx, sim, v);
+    for (const v of visible) {
+      if (v.room.kind !== 'street') continue;
+      drawPuddles(ctx, sim, v.room, v.ox, v.oy, this.time);
+      this.pigeons.draw(ctx, sim, v.room, v.ox, v.oy, dt, this.time);
+    }
     this.drawShiftMarkers(ctx, sim, room);
 
     // depth-sorted layer
@@ -253,6 +260,7 @@ export class View {
     for (const v of visible) {
       const parts = this.roomParts(v.room);
       for (const sp of parts.sprites) list.push({ key: sp.key + v.oy, sp, ox: v.ox, oy: v.oy });
+      if (v.room.kind === 'street') for (const [x, y, axis] of SIGNAL_POLES) list.push({ key: y + v.oy, pole: [x + v.ox, y + v.oy, axis] });
     }
     for (const id in sim.s.cars || {}) {
       const c = sim.s.cars[id];
@@ -276,6 +284,7 @@ export class View {
     const target = this.demo ? null : sim.target();
     for (const d of list) {
       if (d.sp) ctx.drawImage(d.sp.canvas, d.sp.ox + d.ox, d.sp.oy + d.oy, d.sp.w, d.sp.h);
+      else if (d.pole) drawSignalPole(ctx, sim, d.pole[0], d.pole[1], d.pole[2], this.time);
       else if (d.car) this.drawSimCar(ctx, sim, d.car, d.ox, d.oy, light, target);
       else this.drawActor(ctx, sim, d.actor, d.ox, d.oy, target);
     }

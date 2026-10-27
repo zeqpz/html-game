@@ -7,6 +7,7 @@ import {
   texture, line, vgrad, hgrad, text,
 } from './gfx.js';
 import { CELL } from '../data/rooms.js';
+import { dressInterior, dressStreet } from './dressing.js';
 import { ROAD } from '../sim/world.js';
 
 export const RES_IN = 2;
@@ -45,6 +46,8 @@ export function paintInterior(room) {
   for (const d of def.decor || []) if (!FLOOR_DECOR.has(d.type)) wallDecor(ctx, d, L, rnd, def);
   for (const p of def.props || []) if (p.wall) wallProp(ctx, p, L, rnd);
   for (const d of def.doors || []) if (d.side === 'N') backDoor(ctx, d, L, wallH);
+
+  dressInterior(ctx, room, L, rnd);
 
   // ceiling cut along the top
   ctx.fillStyle = shade(L.wallTone, -0.72);
@@ -945,6 +948,7 @@ export function paintStreet(room) {
   for (const f of room.features) groundFeature(ctx, f, rnd, 1);
   for (const f of room.features) if (f.type === 'building') paintBuilding(ctx, f, rnd);
   for (const f of room.features) groundFeature(ctx, f, rnd, 2);
+  dressStreet(ctx, room, rnd);
 
   // city limit barricades
   for (const s of room.solids) if (s.tag === 'barricade') barricade(ctx, s);

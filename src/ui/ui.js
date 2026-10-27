@@ -81,7 +81,8 @@ export class UI {
   }
 
   blocking() {
-    return !!this.panel || this.pauseOpen;
+    // menus, the closet/creator and the death screen all pause your controls
+    return !!this.panel || this.pauseOpen || !$('create').classList.contains('hidden') || !$('title').classList.contains('hidden');
   }
 
   // ------------------------------------------------------------ keys
@@ -675,6 +676,9 @@ export class UI {
     } else if (m.type === 'cont') {
       card.classList.add('wide');
       card.append(el('h2', {}, m.label));
+      if (m.cont === 'apt_2b:stash' || m.label === 'Closet') {
+        card.append(el('button', { class: 'hot wide primary', onclick: () => this.openWardrobe(sim) }, '👕 Get dressed — change hair, clothes and extras'));
+      }
       const row = el('div', { class: 'invrow' });
       row.append(el('div', {}, el('h3', {}, m.label), this.grid(sim, m.cont)));
       row.append(el('div', {}, el('h3', {}, 'Pockets'), this.grid(sim, p.pockets), el('h3', {}, 'Hands'), this.handsSlot(sim)));
@@ -1074,6 +1078,18 @@ export class UI {
     $('title').classList.add('hidden');
     $('create').classList.add('hidden');
     $('hud').classList.remove('hidden');
+  }
+
+  // Your closet: the creator, limited to hair, outfit and extras.
+  openWardrobe(sim) {
+    sim.cmd('modal_close');
+    const p = sim.player;
+    openCreator(this, {
+      mode: 'wardrobe',
+      look: p.look,
+      onBack: () => {},
+      onDone: (r) => sim.cmd('set_look', { look: r.look }),
+    });
   }
 
   // The end of a life: who they were, how it ended, then a new person.

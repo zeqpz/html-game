@@ -16,8 +16,9 @@ python tools/serve.py
 
 Then open http://localhost:5791. Any static server works (`npx http-server`, GitHub Pages, …).
 
-**Controls** — `WASD`/arrows move · `Shift` run · `E` act/talk/pick up · `F` strike (or fire) ·
-`Space` back off · `R` use what you hold · `Q` drop · `I` bag · `P` people · `C` you · `B` board ·
+**Controls** — `WASD`/arrows move · `Shift` run · `E` act/talk/pick up · `Click` attack toward the
+cursor (fires a held gun) · `Space`/`F` attack whoever's closest · `R` use what you hold · `Q` drop ·
+`I` bag · `P` people · `C` you · `B` board ·
 `L` log · `Esc` menu. Driving: `W`/`S` gas/brake, `A`/`D` steer, `Space` handbrake, `E` get out,
 `R` radio. On touch screens the left thumb is a stick and the action buttons sit on the right.
 
@@ -36,6 +37,11 @@ Six streamed street blocks (walk or drive straight across them) and 25+ interior
 
 ## Systems
 
+- **Character creator**: seven steps (you, body, face, hair, outfit, extras, background) with a
+  turntable preview, thumbnails for every style, custom colors, six backgrounds and 10 stat points.
+  The closet at home reopens the hair/outfit/extras part.
+- **Permadeath**: bullets, blades, car wrecks and starvation kill. That character's save is wiped and
+  you build someone new. Fistfights and clubs still only knock you out (you wake in St. Ann's).
 - **You**: health, mind, hunger, thirst, stamina, strength, agility, aim, intellect, reputation, heat,
   cash (an item), bank balance. Stats drift down unused and rise through use (gym, running, books, range).
 - **29 persistent people** with schedules, five personalities, relationships with you *and each other*,
@@ -46,9 +52,14 @@ Six streamed street blocks (walk or drive straight across them) and 25+ interior
   fares). Hours → promotions → more pay and a staff room.
 - **Money**: grid inventory, apartment stash, car trunks; bank deposits with a weekly cap and a
   transaction log; ATM with a card animation; weekly rent with lockout; fines and hospital bills.
-- **Fights**: strike and back off; witnesses remember who started it. Drop to zero and you wake in
-  St. Ann's with everything you carried left where you fell. Police break up fights, confiscate
-  visible weapons, and stop you when your heat is high.
+- **Fights**: click to swing or shoot where you aim; witnesses remember who started it. Get knocked
+  out and you wake in St. Ann's with everything you carried left where you fell. Police break up
+  fights, confiscate visible weapons, and stop you when your heat is high.
+- **Street life**: strangers fill every block around you (more by day, rougher at night). Bump into
+  someone and they say something; keep doing it and they swing. Scroungers grab loose cash, wallets
+  and weapons (and use them), hotheads pick fights, muggers hold you up — pay, talk, fight or run.
+  Loose weapons and loot spawn on the streets: knives, crowbars, bricks, brass knuckles, the odd
+  revolver, wallets, watches, gold chains. Strangers are never saved.
 - **Cars**: weight, soft steering, skids (worse in the rain), handbrake, panel damage, crash ejection,
   fuel, one radio station, chase camera; repairs and a garage stall at Lone Star Auto; buy at Big Tex.
 - **Licenses**: driver and firearm tests at the precinct (intellect greys out wrong answers).
@@ -63,12 +74,15 @@ Six streamed street blocks (walk or drive straight across them) and 25+ interior
 
 ```
 src/sim/    simulation (DOM-free, runs headless): world, nav, actors, memory, talk, fight, ai,
-            work, police, money, cars, licenses, crews, economy, furniture, board
+            work, police, money, cars, licenses, crews, economy, furniture, board, street
+            (strangers, bumps, muggings), origin (creator backgrounds)
 src/data/   rooms (3 stages), items, people, personalities, jobs & favors, shops, cars, licenses,
-            crews, dialogue fragments
-src/view/   canvas view: painted backdrops, props, characters, cars, lighting, weather
-src/ui/     DOM overlay: HUD, talk, menus, panels, title and character creation
+            crews, dialogue fragments, looks (creator options + backgrounds)
+src/view/   canvas view: painted backdrops, props, characters, cars, lighting, weather,
+            dressing (wall/floor detail, signals, puddles, pigeons)
+src/ui/     DOM overlay: HUD, talk, menus, panels, title, creator, death screen
 tests/      node tests/headless.mjs [days] (soak)  ·  node tests/scenario.mjs (scripted walkthrough)
+            ·  node tests/street.mjs (crowds, combat, backgrounds, permadeath)  ·  tests/lookbook.html
 tools/      serve.py (no-cache dev server)
 ```
 

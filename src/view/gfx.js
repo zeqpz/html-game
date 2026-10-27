@@ -15,11 +15,24 @@ export function rngFor(key) {
   return seeded(hashStr(String(key)));
 }
 
+const rgbCache = new Map();
+
+// Accepts '#rgb', '#rrggbb' or an 'rgb(...)'/'rgba(...)' string (so shades can be shaded again).
 export function hexRgb(hex) {
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const n = parseInt(h, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  let v = rgbCache.get(hex);
+  if (v) return v;
+  if (hex[0] === 'r') {
+    const m = hex.match(/[\d.]+/g) || [0, 0, 0];
+    v = [+m[0], +m[1], +m[2]];
+  } else {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    const n = parseInt(h, 16);
+    v = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  if (rgbCache.size > 4000) rgbCache.clear();
+  rgbCache.set(hex, v);
+  return v;
 }
 
 export function rgb(r, g, b, a = 1) {

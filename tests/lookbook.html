@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lookbook</title>
+<style>body{margin:0;background:#2a2d33;color:#ddd;font:12px sans-serif}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Dev page: every creator option drawn side by side, to eyeball the character art.
+import { drawPerson } from '../src/view/people.js';
+import { OPTIONS, SKIN, CLOTH, DENIM, HAIR_COLORS } from '../src/data/looks.js';
+import { NPCS } from '../src/data/npcs.js';
+
+const cv = document.getElementById('c');
+const W = 1500 * Math.max(1, (+(new URLSearchParams(location.search).get('s') || 2.2)) / 2.2);
+const rows = [];
+const base = { skin: '#c68a5e', hair: 'short', hairColor: '#2b1a12', top: 'tee', topColor: '#2c5aa0', top2: '#f4f1ea', bottom: 'jeans', bottomColor: '#34445e', shoes: '#f0f0f0', build: 'avg' };
+const keyOf = (k) => (k === 'hairColor' ? null : k);
+for (const k of ['hair', 'top', 'outer', 'bottom', 'beard', 'hat', 'build', 'face', 'eyes', 'mouth', 'pattern', 'shoeStyle', 'glasses', 'makeup', 'tattoo']) {
+  rows.push({ label: k, looks: OPTIONS[k].map(([v]) => ({ ...base, [k]: v, ...(k === 'beard' ? { hair: 'buzz' } : {}), ...(k === 'pattern' ? { top: 'button' } : {}) })) });
+}
+rows.push({ label: 'skin', looks: SKIN.map((s, i) => ({ ...base, skin: s, hairColor: HAIR_COLORS[i % HAIR_COLORS.length] })) });
+rows.push({ label: 'npcs', looks: NPCS.slice(0, 15).map((n) => n.look) });
+rows.push({ label: 'npcs', looks: NPCS.slice(15, 30).map((n) => n.look) });
+const S = +(new URLSearchParams(location.search).get('s') || 2.2);
+const cellW = 36 * S;
+const rowH = 64 * S;
+cv.width = W;
+cv.height = rows.length * rowH + 20;
+const c = cv.getContext('2d');
+function frame(now) {
+  const t = now / 1000;
+  c.fillStyle = '#3a3e46';
+  c.fillRect(0, 0, cv.width, cv.height);
+  rows.forEach((r, ri) => {
+    c.fillStyle = '#ccc';
+    c.fillText(r.label, 6, ri * rowH + 14);
+    r.looks.forEach((look, i) => {
+      const faces = ['down', 'down', 'right', 'up'];
+      const x = 70 + i * cellW;
+      if (x > W - 30) return;
+      c.save();
+      c.translate(x, ri * rowH + rowH - 12);
+      c.scale(S, S);
+      drawPerson(c, look, { face: i % 7 === 6 ? 'right' : 'down', pose: 'stand', t, phase: 0, blink: false });
+      c.restore();
+    });
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -25,6 +25,7 @@ export class AI {
   decide(npc) {
     const sim = this.sim;
     const s = sim.s;
+    if (npc.extra) return { key: 'stroll', room: npc.room, act: 'stroll' };
     if (npc.recoverUntil && s.t < npc.recoverUntil) return { key: 'recover', room: npc.home, act: 'rest' };
     if (npc.police) {
       const g = sim.police.goal(npc);
@@ -53,6 +54,7 @@ export class AI {
     if (!r || r.kind === 'offmap') return null;
     const rng = sim.rng;
     if (goal.act === 'patrol') return { x: goal.x, y: goal.y };
+    if (goal.act === 'stroll') return sim.street.sidewalkPoint(goal.room) || sim.world.randomPoint(goal.room, rng);
     const free = (p, i) => !sim.spotTaken(goal.room, p.id, i, npc.id);
     const pickSpot = (props) => {
       const opts = [];
@@ -141,16 +143,17 @@ export class AI {
       return;
     }
     if (npc.police && sim.police.think(npc)) return;
+    if (npc.extra && sim.street.think(npc)) return;
 
     // reactions to the player
-    if (p.room === npc.room && !p.dead && p.act !== 'drive') this.encounter(npc, p);
+    if (!npc.extra && p.room === npc.room && !p.dead && p.act !== 'drive') this.encounter(npc, p);
     if (npc.fightWith) return;
 
     // NPC to NPC moments
     this.social(npc);
 
     // grab loose stuff if that's who they are
-    if (!_.pickup && !npc.spot && sim.rng.chance(0.08)) this.eyeLoot(npc);
+    if (!npc.extra && !_.pickup && !npc.spot && sim.rng.chance(0.2)) this.eyeLoot(npc);
     if (_.pickup) return;
 
     const goal = this.decide(npc);
@@ -182,8 +185,8 @@ export class AI {
       }
     }
     // loiterers drift around their hangout now and then
-    if (_.arrived && !npc.spot && (g.act === 'hang' || g.act === 'workout' || g.act === 'eat' || g.act === 'sit')) {
-      if (!_.wanderAt) _.wanderAt = sim.time + sim.rng.range(8, 22);
+    if (_.arrived && !npc.spot && (g.act === 'hang' || g.act === 'workout' || g.act === 'eat' || g.act === 'sit' || g.act === 'stroll')) {
+      if (!_.wanderAt) _.wanderAt = sim.time + (g.act === 'stroll' ? sim.rng.range(0.5, 6) : sim.rng.range(8, 22));
       if (sim.time > _.wanderAt) {
         _.place = this.placeFor(npc, g);
         _.path = null;
@@ -301,12 +304,14 @@ export class AI {
   eyeLoot(npc) {
     const sim = this.sim;
     const P = PERSONALITIES[npc.personality];
-    if (P.greed < 0.45 || npc.act === 'work' || npc.police) return;
+    if (P.greed < 0.3 || npc.act === 'work' || npc.police) return;
     const rs = sim.roomState(npc.room);
     for (const u of rs.items) {
       const it = sim.s.items[u];
+      if (!it || it.job || it.favor) continue;
       const d = ITEMS[it.def];
-      if (!(d.kind === 'cash' || (d.value || 0) >= 10)) continue;
+      const weapon = (d.dmg || 0) >= 9 && !npc.hands && P.temper >= 0.25;
+      if (!(d.kind === 'cash' || d.kind === 'valuable' || d.kind === 'wallet' || (d.value || 0) >= 10 || weapon)) continue;
       if (Math.hypot(it.x - npc.x, it.y - npc.y) > 260) continue;
       const _ = scratch(npc);
       _.pickup = it.uid;
@@ -346,6 +351,17 @@ export class AI {
       this.steer(npc, _.chase.x, _.chase.y, dt, speed * 1.35);
       return;
     }
+    if (npc.dead || _.challenge) {
+      moveBody(sim, npc, 0, 0, 0, dt);
+      return;
+    }
+    if (_.mug) {
+      const p = sim.s.actors.p;
+      const d = Math.hypot(p.x - npc.x, p.y - npc.y);
+      if (d > 40) this.steer(npc, p.x, p.y, dt, speed * (d > 140 ? 1.5 : 1));
+      else moveBody(sim, npc, 0, 0, 0, dt);
+      return;
+    }
     if (_.fleeing) {
       const f = sim.s.actors[_.fleeFrom];
       if (f && f.room === npc.room) {
@@ -364,8 +380,10 @@ export class AI {
       if (!it || it.where !== 'ground' || it.room !== npc.room) {
         _.pickup = null;
       } else if (Math.hypot(it.x - npc.x, it.y - npc.y) < 16) {
-        pickUp(sim, npc, it);
-        sim.say(npc, 'pickup');
+        if (!sim.street.pickUpNpc(npc, it)) {
+          pickUp(sim, npc, it);
+          sim.say(npc, 'pickup');
+        }
         _.pickup = null;
       } else {
         this.steer(npc, it.x, it.y, dt, speed);
@@ -508,7 +526,7 @@ export class AI {
     const s = sim.s;
     for (const id in s.actors) {
       const npc = s.actors[id];
-      if (npc.kind !== 'npc') continue;
+      if (npc.kind !== 'npc' || npc.extra) continue;
       if (npc.loaded) {
         npcNeeds(sim, npc, dm);
         continue;

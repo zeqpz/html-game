@@ -13,6 +13,22 @@ export class Input {
     window.addEventListener('keydown', (e) => this.down(e));
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
+    this.mouse = null; // last mouse position over the game view, CSS pixels
+    const view = document.getElementById('view');
+    if (view) {
+      view.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'mouse') this.mouse = { x: e.clientX, y: e.clientY };
+      });
+      // left click attacks toward the cursor (fires a gun if you hold one)
+      view.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        this.mouse = { x: e.clientX, y: e.clientY };
+        this.edges.strike = true;
+        this.edges.aim = { x: e.clientX, y: e.clientY };
+        e.preventDefault();
+      });
+      view.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
     this.setupTouch();
   }
 
@@ -29,7 +45,7 @@ export class Input {
     }
     this.keys.add(e.code);
     const map = {
-      KeyE: 'interact', Enter: 'interact', KeyF: 'strike', KeyJ: 'strike', Space: 'back', KeyQ: 'drop', KeyR: 'use', KeyG: 'use',
+      KeyE: 'interact', Enter: 'interact', KeyF: 'strike', KeyJ: 'strike', Space: 'strike', KeyQ: 'drop', KeyR: 'use', KeyG: 'use',
     };
     const a = map[e.code];
     if (a) {

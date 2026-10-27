@@ -37,7 +37,15 @@ export const ITEMS = {
   bloom: { name: 'Bayou bloom', kind: 'product', w: 1, h: 1, wt: 0.1, heat: 10, value: 40, desc: 'Glowing night flowers. Collectors pay cash, no questions. Police take a dim view.' },
   coin: { name: 'BayouCoin', kind: 'coin', w: 1, h: 1, wt: 0, stack: true, value: 0, desc: 'Mined credits on a thumb drive. The price moves with the clock.' },
   package: { name: 'Taped package', kind: 'contraband', w: 2, h: 1, wt: 1.2, heat: 15, value: 0, desc: "Wrapped tight in duct tape. Don't ask, don't open." },
-  pistol: { name: 'Pistol', kind: 'firearm', w: 2, h: 1, wt: 0.9, dmg: 34, range: 520, visible: true, value: 380, ammoMax: 12, desc: 'A compact 9mm. Legal with a permit — and loud.' },
+  pistol: { name: 'Pistol', kind: 'firearm', w: 2, h: 1, wt: 0.9, dmg: 34, range: 520, visible: true, value: 380, ammoMax: 12, lethal: true, desc: 'A compact 9mm. Legal with a permit — and loud.' },
+  revolver: { name: 'Revolver', kind: 'firearm', w: 2, h: 1, wt: 1.1, dmg: 42, range: 460, visible: true, value: 260, ammoMax: 6, lethal: true, desc: 'A scuffed six-shooter. Serial number filed off. Takes the same ammo boxes.' },
+  knife: { name: 'Knife', kind: 'weapon', w: 1, h: 1, wt: 0.3, dmg: 13, reach: 5, lethal: true, value: 15, desc: 'A folding knife. Small, quick and serious — wounds from it can kill.' },
+  crowbar: { name: 'Crowbar', kind: 'weapon', w: 1, h: 3, wt: 1.6, handsOnly: true, dmg: 16, reach: 12, visible: true, value: 12, desc: 'Flat-end crowbar. Opens crates and heads.' },
+  brick: { name: 'Brick', kind: 'weapon', w: 1, h: 1, wt: 2.0, dmg: 12, reach: 2, breaks: 0.25, value: 0, desc: 'Half a red brick off a busted wall.' },
+  knucks: { name: 'Brass knuckles', kind: 'weapon', w: 1, h: 1, wt: 0.3, dmg: 8, reach: 0, value: 20, desc: 'Fits over your fist. Every punch lands heavier.' },
+  wallet: { name: 'Lost wallet', kind: 'wallet', w: 1, h: 1, wt: 0.1, value: 2, desc: 'Somebody dropped this. Press R to check inside.' },
+  watch: { name: 'Wristwatch', kind: 'valuable', w: 1, h: 1, wt: 0.1, value: 45, desc: 'A decent watch with a cracked band. Sal at the pawn shop would buy it.' },
+  goldchain: { name: 'Gold chain', kind: 'valuable', w: 1, h: 1, wt: 0.1, value: 90, desc: 'Heavy and shiny. Probably real. Probably somebody misses it.' },
   ammo: { name: 'Ammo box', kind: 'ammo', w: 1, h: 1, wt: 0.3, stack: true, value: 1, desc: 'Range ammunition.' },
   limesoda: { name: 'Lime soda', kind: 'drink', w: 1, h: 1, wt: 0.4, thirst: 30, mind: 4, value: 4, desc: 'Fizzy, sour, comes with a cherry.' },
   energy: { name: 'Energy drink', kind: 'drink', w: 1, h: 1, wt: 0.4, thirst: 20, mind: 3, stamina: 40, value: 4, desc: 'Tastes like a battery. Puts a spring in your step.' },
@@ -53,8 +61,11 @@ export const ITEMS = {
 
 // What a room can spawn at dawn. Weighted.
 export const SPAWN_TABLES = {
-  street: [['bottle', 5], ['pipe', 2], ['snack', 2], ['soda', 2], ['cash', 2], ['phone', 0.6], ['flashlight', 1], ['screwdriver', 1]],
-  park: [['bottle', 4], ['book', 2], ['soda', 2], ['cash', 2], ['water', 2], ['phone', 0.5], ['bat', 0.6]],
+  street: [
+    ['bottle', 5], ['pipe', 2], ['brick', 2.2], ['snack', 2], ['soda', 2], ['cash', 2.4], ['wallet', 1.4], ['phone', 0.6], ['flashlight', 1], ['screwdriver', 1],
+    ['knife', 1.1], ['crowbar', 0.9], ['bat', 0.7], ['knucks', 0.4], ['watch', 0.5], ['goldchain', 0.2], ['ammo', 0.5], ['pistol', 0.16], ['revolver', 0.2],
+  ],
+  park: [['bottle', 4], ['book', 2], ['soda', 2], ['cash', 2], ['wallet', 1], ['water', 2], ['phone', 0.5], ['bat', 0.8], ['knife', 0.5], ['brick', 1], ['watch', 0.3]],
   diner: [['coffee', 1], ['bottle', 1], ['book', 1], ['cash', 1]],
   gym: [['water', 3], ['bottle', 1], ['cash', 1], ['bandage', 1]],
   home: [['book', 2], ['snack', 2], ['soda', 2], ['water', 1]],

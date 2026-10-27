@@ -1302,6 +1302,85 @@ export function drawItem(c, def, s = 24, it = null) {
     case 'cinder': for (let k = 0; k < 2; k++) fillRR(c, -11 + k * 11, -6, 10, 12, 1, '#b4ada0', 'rgba(0,0,0,0.3)', 0.8); break;
     case 'pistol': c.rotate(-0.2); fillRR(c, -10, -4, 20, 7, 2, '#2b2b2b', '#000', 1); fillRR(c, -8, 1, 7, 10, 2, '#3a3a3a', null); line(c, 10, -1, 12, -1, '#555', 2); break;
     case 'ammo': fillRR(c, -8, -6, 16, 12, 1, '#7a6a3a', '#3a2a10', 1); text(c, '9mm', 0, 0.5, { size: 5, color: '#f4efe2' }); break;
+    case 'revolver':
+      c.rotate(-0.2);
+      fillRR(c, -2, -4, 14, 4, 1, '#8a9096', '#3a3e42', 1);
+      ellipse(c, -2, -1, 4.5, 4, '#6d7378');
+      for (let k = 0; k < 3; k++) line(c, -5 + k * 3, -3.5, -5 + k * 3, 1.5, '#4a4f54', 0.8);
+      fillRR(c, -10, -1, 7, 11, 2.5, '#6b4423', '#2b1a0e', 1);
+      line(c, -9, 2, -5, 8, 'rgba(255,255,255,0.25)', 1);
+      break;
+    case 'knife':
+      c.rotate(-0.6);
+      fillRR(c, -2.5, 1, 5, 11, 2, '#2b2b2b', '#000', 0.8);
+      circle(c, 0, 4, 0.8, '#9aa3ab');
+      circle(c, 0, 9, 0.8, '#9aa3ab');
+      c.fillStyle = '#d7dde2';
+      c.beginPath();
+      c.moveTo(-2.2, 1);
+      c.lineTo(2.2, 1);
+      c.lineTo(1.6, -9);
+      c.lineTo(-2.2, -12);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = '#6d747b';
+      c.lineWidth = 0.8;
+      c.stroke();
+      line(c, -1, 0, -1.2, -9, 'rgba(255,255,255,0.7)', 0.8);
+      break;
+    case 'crowbar':
+      c.rotate(0.35);
+      line(c, 0, -10, 0, 13, '#1d1d22', 4.2);
+      line(c, 0, -10, 0, 13, '#3d4a5a', 3);
+      c.strokeStyle = '#3d4a5a';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.arc(-3.5, -10, 3.5, 0, Math.PI * 1.15, true);
+      c.stroke();
+      line(c, -0.6, -8, -0.6, 12, 'rgba(255,255,255,0.3)', 0.8);
+      break;
+    case 'brick':
+      c.rotate(-0.15);
+      fillRR(c, -10, -5, 20, 10, 1.5, '#a5462f', '#5a2014', 1);
+      for (const [x, y] of [[-6, -2], [1, 1], [5, -3], [-3, 2.5]]) circle(c, x, y, 1, '#7a2f1d');
+      line(c, -9, -4, 9, -4, 'rgba(255,255,255,0.18)', 1);
+      break;
+    case 'knucks':
+      fillRR(c, -10, -6, 20, 8, 3, '#c9a24a', '#6b5216', 1);
+      for (let k = 0; k < 4; k++) circle(c, -7 + k * 4.7, -2, 1.8, '#3b2a10');
+      fillRR(c, -7, 2, 14, 6, 3, '#b08a35', '#6b5216', 1);
+      line(c, -8, -5, 8, -5, 'rgba(255,255,255,0.5)', 1);
+      break;
+    case 'wallet':
+      fillRR(c, -10, -7, 20, 14, 2.5, '#4a2e1a', '#1d1009', 1);
+      fillRR(c, -10, -7, 20, 6, 2.5, '#5c3a22', null);
+      line(c, -8, -1, 8, -1, 'rgba(0,0,0,0.4)', 0.8);
+      fillRR(c, 3, -3.5, 6, 4, 1, '#6c9a55', null);
+      for (let k = -8; k < 9; k += 3) circle(c, k, 5.5, 0.4, '#c9a24a');
+      break;
+    case 'watch':
+      fillRR(c, -3.5, -12, 7, 24, 2, '#2b2b2b', '#000', 0.8);
+      circle(c, 0, 0, 6.5, '#c9a24a');
+      circle(c, 0, 0, 5, '#f4efe2');
+      line(c, 0, 0, 0, -3.6, '#222', 0.9);
+      line(c, 0, 0, 2.6, 0.8, '#222', 0.9);
+      line(c, -2, 3, 3, -3, 'rgba(120,140,160,0.6)', 0.6);
+      break;
+    case 'goldchain':
+      c.strokeStyle = '#e6c04a';
+      c.lineWidth = 2.2;
+      c.beginPath();
+      c.ellipse(0, -1, 9, 8, 0, 0.2, Math.PI * 2 - 0.2);
+      c.stroke();
+      c.strokeStyle = '#8a6a10';
+      c.lineWidth = 0.6;
+      for (let a = 0; a < Math.PI * 2; a += 0.45) {
+        c.beginPath();
+        c.arc(Math.cos(a) * 9, -1 + Math.sin(a) * 8, 1, 0, Math.PI * 2);
+        c.stroke();
+      }
+      circle(c, 0, 8, 2.6, '#f2d36b');
+      break;
     case 'cuttings': for (let k = 0; k < 3; k++) { line(c, -4 + k * 4, 8, -4 + k * 4 + (k - 1) * 2, -6, '#4f7d3a', 2); ellipse(c, -4 + k * 4 + (k - 1) * 2, -7, 3, 2, '#62874c'); } fillRR(c, -8, 6, 16, 5, 2, '#b36a43', null); break;
     case 'bloom': for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; ellipse(c, Math.cos(a) * 5, Math.sin(a) * 5, 4, 2.5, '#9ef0ff'); } circle(c, 0, 0, 3, '#fff6a8'); circle(c, 0, 0, 9, 'rgba(158,240,255,0.25)'); break;
     case 'coin': fillRR(c, -5, -9, 10, 18, 2, '#2b2e33', '#000', 1); fillRR(c, -3, -13, 6, 5, 1, '#9aa3ab', null); text(c, 'B¢', 0, 2, { size: 6, color: '#ffd23f' }); break;

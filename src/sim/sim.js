@@ -17,6 +17,8 @@ import { MODELS } from '../data/cars.js';
 import { Crews } from './crews.js';
 import { Economy, coinPrice } from './economy.js';
 import { Furniture } from './furniture.js';
+import { applyOrigin, fixUpCar } from './origin.js';
+import { StreetLife } from './street.js';
 import { CREWS } from '../data/crews.js';
 import { FURNITURE } from '../data/rooms3.js';
 import { LEASE_NAMES, RENT } from './money.js';
@@ -33,6 +35,7 @@ import { JOBS, FAVORS } from '../data/work.js';
 export const SAVE_VERSION = 1;
 export const STEP = 1 / 30;
 const SLEEP_SCALE = 45;
+const LETHAL = new Set(['shot', 'stabbed', 'crash', 'starved']);
 
 export class Sim {
   constructor(state) {
@@ -43,6 +46,7 @@ export class Sim {
     this.items = items;
     this.ai = new AI(this);
     this.fight = new Fights(this);
+    this.street = new StreetLife(this);
     this.work = new Work(this);
     this.police = new Police(this);
     this.money = new Money(this);
@@ -67,7 +71,7 @@ export class Sim {
   }
 
   // ------------------------------------------------------------ creation
-  static create({ seed = (Math.random() * 2 ** 31) | 0, name = 'Marcus', look, dayLen = 600 } = {}) {
+  static create({ seed = (Math.random() * 2 ** 31) | 0, name = 'Marcus', look, dayLen = 600, origin = 'newcomer', alloc = null } = {}) {
     const s = {
       v: SAVE_VERSION, seed, rng: seed >>> 0 || 7, t: DAY + hm('08:30'), dayLen,
       actors: {}, items: {}, conts: {}, rooms: {}, favors: [], favorCooldown: {},
@@ -80,6 +84,7 @@ export class Sim {
     p.y = 300;
     p.face = 'down';
     p.awakeSince = s.t - 60;
+    p.bornAt = s.t;
     s.actors.p = p;
     const sim = Object.create(Sim.prototype);
     sim.s = s;
@@ -110,11 +115,12 @@ export class Sim {
       sim.s.rooms[L.room] = sim.s.rooms[L.room] || { items: [] };
       items.placeGround(sim, it, L.room, L.x, L.y);
     }
-    items.putInCont(sim, items.newItem(sim, 'cash', { n: 35 }), p.pockets);
-    s.log.push({ t: s.t, text: `${weekday(s.t)} morning. Rent's paid through Sunday. $35 in your pocket.`, kind: '' });
+    const O = applyOrigin(sim, p, origin, alloc);
+    s.log.push({ t: s.t, text: `${weekday(s.t)} morning. Rent's paid through Sunday. $${O.cash ?? 35} in your pocket.`, kind: '' });
     s.rng = sim.rng.s;
     const real = new Sim(s);
-    real.cars.giveStartCar();
+    const car = real.cars.giveStartCar();
+    if (O.carFixed) fixUpCar(car);
     s.flags.startCar = true;
     s.log.push({ t: s.t, text: "Your old sedan is parked out front on Pecan St. It won't start for you until you get a driver license.", kind: '' });
     return real;
@@ -135,7 +141,19 @@ export class Sim {
 
   serialize() {
     this.s.rng = this.rng.s;
-    return JSON.stringify(this.s, (k, v) => (k.startsWith('_') ? undefined : v));
+    const actors = {};
+    const skip = new Set();
+    for (const id in this.s.actors) {
+      const a = this.s.actors[id];
+      if (!a.extra) actors[id] = a;
+      else {
+        if (a.hands) skip.add(a.hands);
+        for (const u of a.inv) skip.add(u);
+      }
+    }
+    const itemsOut = {};
+    for (const u in this.s.items) if (!skip.has(u) && !skip.has(Number(u))) itemsOut[u] = this.s.items[u];
+    return JSON.stringify({ ...this.s, actors, items: itemsOut }, (k, v) => (k.startsWith('_') ? undefined : v));
   }
 
   // ------------------------------------------------------------ helpers
@@ -280,6 +298,10 @@ export class Sim {
     for (const id in this.s.actors) {
       const a = this.s.actors[id];
       if (a.kind !== 'npc') continue;
+      if (a.extra && !want.has(a.room)) {
+        this.street.remove(a);
+        continue;
+      }
       if (a.loaded && !want.has(a.room)) this.ai.dematerialize(a);
     }
     const before = this.loaded || new Set();
@@ -397,6 +419,7 @@ export class Sim {
     this.work.tick();
     this.ai.update(dt);
     this.fight.update(dt);
+    this.street.update(dt);
     this.separate();
     this.updateTasks(dt);
     for (let i = this.timers.length - 1; i >= 0; i--) {
@@ -452,7 +475,7 @@ export class Sim {
       this.log('Your head goes white. You lose it for a few seconds.', 'bad');
       this.emit('snap', {});
     }
-    if (p.stats.health <= 0 && !p.downUntil && !p.dead) this.playerDown(null);
+    if (p.stats.health <= 0 && !p.downUntil && !p.dead) this.playerDown(null, p.stats.hunger <= 0 || p.stats.thirst <= 0 ? 'starved' : 'collapsed');
   }
 
   separate() {
@@ -472,6 +495,12 @@ export class Sim {
         const min = ACTOR_R * 2;
         if (d2 >= min * min || d2 < 1e-6) continue;
         const d = Math.sqrt(d2);
+        if (a.kind === 'player' || b.kind === 'player') {
+          const pl = a.kind === 'player' ? a : b;
+          const o = pl === a ? b : a;
+          const pv = scratch(pl);
+          if (o.kind === 'npc' && Math.hypot(pv.vx || 0, pv.vy || 0) > 40) this.street.bump(o);
+        }
         const push = (min - d) / 2;
         const ux = dx / d;
         const uy = dy / d;
@@ -501,6 +530,10 @@ export class Sim {
     const inp = this.input;
     const e = this.edges;
 
+    if (p.dead) {
+      moveBody(this, p, 0, 0, 0, dt);
+      return;
+    }
     if (p.downUntil) {
       moveBody(this, p, 0, 0, 0, dt);
       if (this.time >= p.downUntil) this.respawn();
@@ -620,8 +653,7 @@ export class Sim {
 
     if (frozen) return;
     if (e.interact) this.interact();
-    if (e.strike) this.fight.strike(p);
-    if (e.back) this.fight.backOff(p);
+    if (e.strike) this.fight.strike(p, e.aim || this.fight.autoAim(p));
     if (e.drop) {
       const it = items.dropHands(this, p);
       if (it) this.log(`Dropped ${items.itemName(it)}.`);
@@ -693,8 +725,8 @@ export class Sim {
       const h = p.hands && this.s.items[p.hands];
       const rs = this.roomState(p.room);
       const paid = rs.rangeUntil && rs.rangeUntil > this.s.t;
-      if (!h || h.def !== 'pistol') {
-        this.toast('You need a pistol in your hands.', 'warn');
+      if (!h || ITEMS[h.def].kind !== 'firearm') {
+        this.toast('You need a gun in your hands.', 'warn');
         this.leaveSpot(p);
         return;
       }
@@ -1117,7 +1149,7 @@ export class Sim {
         const i = (prop.spots || []).findIndex((sp, k) => !this.spotTaken(p.room, prop.id, k, 'p'));
         if (i < 0) return this.toast('Lane taken.', 'warn');
         const h = p.hands && this.s.items[p.hands];
-        if (!h || h.def !== 'pistol') return this.toast('Bring your own pistol. Dale sells them — with a permit.', 'warn');
+        if (!h || ITEMS[h.def].kind !== 'firearm') return this.toast('Bring your own gun. Dale sells pistols — with a permit.', 'warn');
         this.enterSpot(p, prop, i, 'range');
         p.act = 'range';
         this.toast('On the line. Ears on. Move to step back.', '');
@@ -1147,7 +1179,11 @@ export class Sim {
     const p = this.player;
     switch (name) {
       case 'menu_close': this.ui.menu = null; return;
-      case 'modal_close': this.ui.modal = null; return;
+      case 'modal_close':
+        if (this.ui.modal && this.ui.modal.type === 'mug') return this.street.mugReply('run');
+        this.ui.modal = null;
+        return;
+      case 'mug_reply': return this.street.mugReply(a.choice);
       case 'npc_action': return this.npcAction(a.id, a.action, a);
       case 'talk_tone': talk.chooseTone(this, a.tone); return;
       case 'talk_close': talk.closeTalk(this); return;
@@ -1671,9 +1707,12 @@ export class Sim {
     this.wantSave = true;
   }
 
-  playerDown(by) {
+  // cause: 'beaten' / 'collapsed' wake up in the ER; 'shot', 'stabbed', 'crash'
+  // and 'starved' are the end of this character.
+  playerDown(by, cause = 'beaten') {
     const p = this.player;
-    if (p.downUntil) return;
+    if (p.downUntil || p.dead) return;
+    if (LETHAL.has(cause)) return this.playerDie(by, cause);
     this.closeMenus();
     if (p.spot) this.leaveSpot(p);
     if (this.s.sleepUntil) this.s.sleepUntil = 0;
@@ -1708,6 +1747,45 @@ export class Sim {
     this.sfx('thud');
     this.log(by ? `${by.short} put you on the floor. Everything goes black.` : 'Everything goes black.', 'bad');
     if (this.work.onShift()) this.work.failShift('you got knocked out');
+  }
+
+  // Permadeath. The character is gone; the UI offers a new life.
+  playerDie(by, cause) {
+    const p = this.player;
+    this.closeMenus();
+    if (p.spot) this.leaveSpot(p);
+    if (p.car) this.cars.exit(true);
+    this.s.sleepUntil = 0;
+    p.dead = true;
+    p.act = 'down';
+    p.fightWith = null;
+    p.stats.health = 0;
+    this.fight.stopAll(p.room);
+    const dropped = [];
+    const all = [...this.s.conts[p.pockets].items];
+    if (p.hands) all.push(p.hands);
+    for (const u of all) {
+      const it = this.s.items[u];
+      if (!it) continue;
+      const a = this.rng.next() * Math.PI * 2;
+      const r = 8 + this.rng.next() * 22;
+      const pt = { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r * 0.6 };
+      this.world.collide(p.room, pt, 4);
+      items.placeGround(this, it, p.room, pt.x, pt.y);
+      it.owner = null;
+      dropped.push(items.itemName(it));
+    }
+    const days = Math.max(1, Math.round((this.s.t - (p.bornAt ?? DAY + hm('08:30'))) / 1440));
+    const how = { shot: by ? `shot by ${by.short}` : 'shot', stabbed: by ? `stabbed by ${by.short}` : 'stabbed', crash: 'killed in a car wreck', starved: 'starved and dehydrated' }[cause] || 'killed';
+    this.s.death = { name: p.name, cause, how, by: by ? by.short : null, t: this.s.t, days, room: p.room, look: p.look,
+      stats: { ...this.s.stats }, rep: Math.round(p.stats.reputation), bank: p.bank };
+    this.emit('down', { id: 'p', room: p.room });
+    this.emit('shake', { amt: 18 });
+    this.emit('playerDied', { cause });
+    this.sfx('thud');
+    this.log(`${p.name} is dead — ${how}. ${days} day${days === 1 ? '' : 's'} in H-Town.`, 'bad');
+    for (const w of witnesses(this, p.room, p.x, p.y, ['p'])) if (!w.police && !w.fightWith) this.fight.flee(w, p);
+    this.wantSave = true;
   }
 
   respawn() {

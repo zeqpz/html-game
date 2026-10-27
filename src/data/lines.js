@@ -252,7 +252,21 @@ export const BARK = {
   copStop: ['Hey! Break it up!', 'Police! Knock it off!', 'That\'s enough! Both of you!'],
   copWeapon: ['Drop the {item}. Now.', "I'll take that {item}.", 'That {item} is coming with me.'],
   copHello: ['{greet}.', 'Stay out of trouble.', 'Keep it moving.', '{weather}'],
-  pickup: ['Finders keepers.', 'Ooh, don\'t mind if I do.', 'Mine now.'],
+  pickup: ['Finders keepers.', 'Ooh, don\'t mind if I do.', 'Mine now.', 'Oh, nice.', "Somebody's loss.", 'Ha. My lucky day.'],
+  pickupWeapon: ["This'll come in handy.", 'Now who wants some?', "Oh, I'm keeping this.", 'Heh. Look what I found.'],
+  bump1: ['Watch it.', 'Excuse me.', 'Hey — careful.', 'Whoa, sorry.', 'Pardon me.', 'Easy there.'],
+  bump2: ["Watch where you're going!", 'Do you mind?', 'Seriously? Again?', 'Back up, man.', 'You blind or something?'],
+  bump3: ['Bump me one more time. I dare you.', 'You looking for trouble?', 'Last warning.', 'Touch me again and see what happens.'],
+  bump4: ["That's it!", 'Okay, you asked for it!', "You wanna go? Let's go!"],
+  copBump: ['Watch it, citizen.', 'Move along.', 'Mind your step.'],
+  challenge: ['What you looking at?', 'You got a problem with me?', 'Something funny?', 'You lost or something?', "Nice shoes. Shame if something happened to 'em."],
+  challengeOff: ['Yeah. Keep walking.', "That's what I thought.", 'Smart.'],
+  mugStart: ['Hey. Run your pockets.', "Don't make this hard. Wallet. Now.", 'Empty your pockets, slow.', 'You know what this is. Hand it over.'],
+  mugTook: ['Pleasure doing business.', 'Smart choice.', "Don't follow me."],
+  mugOff: ['...Aight. My bad. Wrong person.', 'Tch. Fine. Get outta here.', 'Whatever. Not worth it.'],
+  mugAngry: ['Wrong answer.', "Oh, you think you're tough?", 'Then we do it the hard way.'],
+  mugChase: ['Get back here!', "You can't outrun me!"],
+  stranger: ['Hot one.', 'Mm-hm.', '*hums*', 'Bus is late again.', 'Gotta get to work.', 'Who parks like that?', 'Smells like rain.', "*on the phone* Yeah, I'm almost there."],
   takeBack: ['Hey! That\'s mine!', 'Put that down!', 'That\'s MY {item}!'],
   orderUp: ['Order up!', 'Plate\'s ready!', 'Table\'s waiting, hon!'],
   thanksFood: ['Thanks, hon.', 'Finally! Thank you.', 'Smells great.'],
@@ -277,3 +291,12 @@ export const CHAT = [
 ];
 
 export const NAMES_PLAYER = ['Marcus', 'Tasha', 'Luis', 'Kendra', 'Quan', 'Bianca', 'Darnell', 'Lupe', 'Travis', 'Nia', 'Hector', 'Jade'];
+
+// Strangers on the street (generated, never saved).
+export const STRANGER_FIRST = ['Big Mike', 'Tre', 'Lorenzo', 'Dee', 'Shorty', 'Manny', 'Rico', 'Pam', 'Tanya', 'Jo', 'Earl Jr.', 'Bubba', 'Lil Ray', 'Yolanda', 'Cesar', 'Duke', 'Kiki', 'Rudy', 'Sonny', 'Marquis', 'Gloria', 'Tito', 'Nina', 'Beto', 'Junior', 'Crystal', 'Pete', 'Ramon', 'Tiny', 'Dot'];
+export const STRANGER_ROLE = {
+  walker: ['Passerby', 'Commuter', 'Neighbor from down the block', 'Night owl', 'Delivery driver', 'Dog walker'],
+  hothead: ['Loudmouth', 'Hothead', 'Somebody with a chip on their shoulder'],
+  scavenger: ['Scrounger', 'Can collector', 'Pickpocket type'],
+  thug: ['Corner hustler', 'Stick-up kid', 'Mugger'],
+};

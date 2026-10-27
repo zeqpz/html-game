@@ -27,6 +27,7 @@ export class View {
     this.bubbles = new Map();
     this.floats = [];
     this.particles = [];
+    this.tracers = [];
     this.fade = 0;
     this.shake = 0;
     this.flash = 0;
@@ -109,6 +110,10 @@ export class View {
           this.flash = Math.max(this.flash, 0.12);
           break;
         case 'down': if (e.id === 'p') this.downT = 3; break;
+        case 'tracer': this.tracers.push({ ...e, t: 0 }); break;
+        case 'death':
+          for (let i = 0; i < 12; i++) this.particles.push({ room: e.room, x: e.x, y: e.y - 10, vx: (Math.random() - 0.5) * 90, vy: -Math.random() * 120, t: 0, life: 0.5, color: '#8e1b1b', r: 1.8 });
+          break;
         case 'respawn': this.fade = 1; this.downT = 0; break;
         default: break;
       }
@@ -205,6 +210,12 @@ export class View {
       return [dx * cr - dy * sr + W / 2 + sx, dx * sr + dy * cr + H / 2 + sy];
     };
     this.toScreen = toScreen;
+    // and back again, for mouse aiming
+    this.toWorld = (px, py) => {
+      const ax = px - W / 2 - sx;
+      const ay = py - H / 2 - sy;
+      return { x: (ax * cr + ay * sr) / z + this.cam.x, y: (-ax * sr + ay * cr) / z + this.cam.y };
+    };
 
     ctx.save();
     ctx.translate(W / 2 + sx, H / 2 + sy);
@@ -270,6 +281,20 @@ export class View {
     }
 
     this.drawDynamicDecor(ctx, sim, room);
+    // gunfire tracers
+    for (let i = this.tracers.length - 1; i >= 0; i--) {
+      const q = this.tracers[i];
+      q.t += dt;
+      if (q.t > 0.09) {
+        this.tracers.splice(i, 1);
+        continue;
+      }
+      if (q.room !== room.id) continue;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      line(ctx, q.x, q.y, q.tx, q.ty, `rgba(255,236,170,${0.9 - q.t * 8})`, 1.6);
+      ctx.restore();
+    }
     // particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const q = this.particles[i];
@@ -542,10 +567,27 @@ export class View {
 
   drawActor(ctx, sim, a, ox, oy, target) {
     const _ = scratch(a);
+    if (a.dead) {
+      // a pool that spreads for a while under the body
+      if (!_.poolT) _.poolT = this.time;
+      const k = Math.min(1, (this.time - _.poolT) / 6);
+      ctx.save();
+      ctx.translate(a.x + ox, a.y + oy);
+      ctx.scale(1, 0.5);
+      const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 10 + k * 18);
+      g.addColorStop(0, 'rgba(110,12,12,0.85)');
+      g.addColorStop(0.75, 'rgba(90,8,8,0.7)');
+      g.addColorStop(1, 'rgba(70,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, 10 + k * 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     let pose = 'stand';
     let face = a.face;
     let bar = false;
-    if (a.downUntil) pose = 'down';
+    if (a.downUntil || a.dead) pose = 'down';
     else if (a.act === 'sleep' && a.spot) pose = 'sleep';
     else if (a.spot) {
       const prop = sim.world.prop(a.spot.room, a.spot.prop);
@@ -579,7 +621,7 @@ export class View {
       const k = (this.time * 0.6) % 1;
       text(ctx, 'z', a.x + ox + 8 + k * 8, a.y + oy - 40 - k * 18, { size: 7 + k * 5, color: `rgba(255,255,255,${1 - k})` });
     }
-    if (a.downUntil) {
+    if (a.downUntil && !a.dead) {
       for (let i = 0; i < 3; i++) {
         const ang = this.time * 3 + (i * Math.PI * 2) / 3;
         text(ctx, '✦', a.x + ox + Math.cos(ang) * 10, a.y + oy - 14 + Math.sin(ang) * 4, { size: 6, color: '#ffe66d' });

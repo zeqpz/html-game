@@ -400,7 +400,7 @@ export class Cars {
       sim.emit('shake', { amt: Math.min(16, impact / 22) });
       p.stats.health = Math.max(0, p.stats.health - Math.max(0, impact - 160) * 0.04);
       if (impact > EJECT_SPEED) this.eject(car, impact);
-      else if (p.stats.health <= 0) sim.playerDown(null);
+      else if (p.stats.health <= 0) sim.playerDown(null, 'crash');
     }
   }
 
@@ -428,7 +428,7 @@ export class Cars {
     sim.emit('shake', { amt: 18 });
     sim.sfx('thud');
     for (const w of witnesses(sim, car.room, car.x, car.y, [])) adjustRel(sim, w, 'p', -2);
-    if (p.stats.health <= 0) sim.playerDown(null);
+    if (p.stats.health <= 0) sim.playerDown(null, 'crash');
   }
 
   hitPeople(car) {
@@ -462,7 +462,7 @@ export class Cars {
           }
           sim.addHeat(sim.policeIn(a.room) ? 30 : 12, 'hit someone with your car');
           sim.repChange(-4, 'ran someone down', a.room);
-          if (a.stats.health <= 0) sim.fight.knockDown(a, sim.player);
+          if (a.stats.health <= 0) sim.fight.knockDown(a, sim.player, 'runover');
           else sim.fight.flee(a, sim.player);
         } else if (d < q.r + 9) {
           a.x = q.x + (dx / (d || 1)) * (q.r + 9);

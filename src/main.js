@@ -83,7 +83,7 @@ class Game {
     const blob = {
       version: SAVE_VERSION,
       savedAt: Date.now(),
-      summary: { name: p.name, t: this.sim.s.t, cash: cashOnBody(this.sim, p) },
+      summary: { name: p.name, t: this.sim.s.t, cash: cashOnBody(this.sim, p), dead: !!p.dead },
       data: this.sim.serialize(),
     };
     try {
@@ -108,6 +108,7 @@ class Game {
     const s = this.saves().sort((a, b) => b.b.savedAt - a.b.savedAt)[0];
     if (!s) return '';
     const m = s.b.summary;
+    if (m.dead) return `${m.name} died on day ${dayOf(m.t)} — start a new life`;
     return `${m.name} · ${weekday(m.t)} ${clock12(m.t)}, day ${dayOf(m.t)} · ${money(m.cash)}`;
   }
 
@@ -115,21 +116,42 @@ class Game {
     const s = this.saves().sort((a, b) => b.b.savedAt - a.b.savedAt)[0];
     if (!s) return;
     try {
-      this.start(Sim.load(s.b.data));
-      this.ui.toast('Welcome back.', 'good');
+      const sim = Sim.load(s.b.data);
+      this.start(sim);
+      if (sim.player.dead && sim.s.death) this.ui.showDeath(sim.s.death);
+      else this.ui.toast('Welcome back.', 'good');
     } catch (e) {
       console.error(e);
       this.ui.toast(`Save could not be loaded: ${e.message}`, 'bad');
     }
   }
 
-  newGame(name, look, dayLen) {
-    this.settings.dayLen = dayLen;
+  // r: { name, look, dayLen, origin, alloc } from the character creator
+  newGame(r) {
+    this.settings.dayLen = r.dayLen;
     this.applySettings();
-    const sim = Sim.create({ name, look, dayLen });
+    const sim = Sim.create(r);
     this.start(sim);
     this.ui.toast('Your apartment. Your life. Press E near things.', '');
     this.save('auto');
+  }
+
+  // After a death: a brand-new person in a fresh city. Past lives are remembered on the title.
+  rebirth(r) {
+    const old = this.sim ? this.sim.s : null;
+    const graves = old ? [...(old.graves || []), old.death].filter(Boolean).slice(-12) : [];
+    this.newGame(r);
+    this.sim.s.graves = graves;
+    this.save('auto');
+  }
+
+  // The old character is wiped the moment they die: no reloading out of it.
+  onDeath() {
+    if (this.ls) this.ls.removeItem(KEYS.manual);
+    this.save('auto');
+    setTimeout(() => {
+      if (this.sim && this.sim.player.dead && this.playing) this.ui.showDeath(this.sim.s.death);
+    }, 2600);
   }
 
   start(sim) {
@@ -165,6 +187,7 @@ class Game {
         sim.input.my = mv.y;
         sim.input.sprint = mv.sprint;
         sim.input.hand = mv.hand;
+        if (edges.aim && this.view.toWorld) edges.aim = this.view.toWorld(edges.aim.x, edges.aim.y);
         Object.assign(sim.edges, edges);
         this.acc += dt;
         let n = 0;
@@ -185,7 +208,10 @@ class Game {
     this.view.consume(sim);
     if (this.playing) {
       this.ui.consume(sim);
-      for (const e of sim.events) if (e.type === 'sfx') this.audio.play(e.name);
+      for (const e of sim.events) {
+        if (e.type === 'sfx') this.audio.play(e.name);
+        else if (e.type === 'playerDied') this.onDeath();
+      }
     }
     sim.events.length = 0;
     this.view.render(sim, dt);

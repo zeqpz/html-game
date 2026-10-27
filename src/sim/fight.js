@@ -26,12 +26,23 @@ export class Fights {
     return !a.downUntil && !a.dead && _.cd <= 0 && _.strikeT <= 0 && a.act !== 'sleep';
   }
 
-  strike(a) {
+  // aim: optional world point to swing or fire at (mouse click / auto-target)
+  strike(a, aim = null) {
     const sim = this.sim;
     const _ = scratch(a);
     if (!this.canAct(a)) return false;
+    _.aim = null;
+    if (aim) {
+      const dx = aim.x - a.x;
+      const dy = aim.y - (a.y - 20);
+      const d = Math.hypot(dx, dy);
+      if (d > 1) {
+        _.aim = { x: dx / d, y: dy / d };
+        faceToward(a, a.x + dx, a.y + dy);
+      }
+    }
     const held = a.hands && sim.s.items[a.hands];
-    if (held && held.def === 'pistol') return this.shoot(a, held);
+    if (held && ITEMS[held.def].kind === 'firearm') return this.shoot(a, held);
     if (a.stats.stamina < 8) {
       if (a.kind === 'player') sim.toast('Too winded to swing.', 'warn');
       return false;
@@ -53,29 +64,37 @@ export class Fights {
       // reload from an ammo box if you have one
       const box = [...sim.items.contItems(sim, a.pockets || '')].find((it) => it.def === 'ammo');
       if (box) {
-        const n = Math.min(12, box.n);
+        const n = Math.min(ITEMS[gun.def].ammoMax || 12, box.n);
         box.n -= n;
         if (box.n <= 0) sim.items.destroy(sim, box);
         gun.ammo = n;
         _.cd = 1.2;
         sim.toast(`Reloaded (${n}).`, '');
         sim.sfx('click', a);
+      } else if (a.kind === 'npc' && a.fightWith) {
+        // out of bullets: the gun becomes a club
+        gun.ammo = 0;
+        _.cd = 0.6;
+        a.hands = null;
+        dropHands(sim, a);
+        sim.say(a, 'swing');
       } else {
-        sim.toast('Click. Empty.', 'warn');
+        if (a.kind === 'player') sim.toast('Click. Empty.', 'warn');
         sim.sfx('click', a);
         _.cd = 0.4;
       }
       return false;
     }
     gun.ammo--;
-    _.cd = 0.45;
+    const G = ITEMS[gun.def];
+    _.cd = a.kind === 'npc' ? 0.9 : 0.45;
     _.strikeAnim = 0.2;
-    const [fx, fy] = FACE_VEC[a.face];
-    sim.emit('muzzle', { room: a.room, x: a.x + fx * 14, y: a.y - 26 + fy * 8, dir: a.face });
+    const [fx, fy] = _.aim ? [_.aim.x, _.aim.y] : FACE_VEC[a.face];
+    sim.emit('muzzle', { room: a.room, x: a.x + fx * 14, y: a.y - 26 + fy * 8, dir: a.face, ax: fx, ay: fy });
     sim.sfx('shot', a);
     // the closest person in a narrow cone ahead
     let best = null;
-    let bd = 520;
+    let bd = G.range || 520;
     for (const id in sim.s.actors) {
       const b = sim.s.actors[id];
       if (b === a || b.room !== a.room || !b.loaded || b.downUntil || b.act === 'drive') continue;
@@ -83,16 +102,17 @@ export class Fights {
       const dy = b.y - a.y;
       const d = Math.hypot(dx, dy);
       if (d > bd || d < 1) continue;
-      if ((dx * fx + dy * fy) / d < 0.9) continue;
+      if ((dx * fx + dy * fy) / d < (_.aim ? 0.94 : 0.9)) continue;
       bd = d;
       best = b;
     }
+    sim.emit('tracer', { room: a.room, x: a.x + fx * 14, y: a.y - 26, tx: best ? best.x : a.x + fx * bd, ty: best ? best.y - 28 : a.y - 26 + fy * bd });
     // everybody heard that
     for (const w of witnesses(sim, a.room, a.x, a.y, [a.id])) {
       if (w.police) continue;
       remember(sim, w, { type: 'shot', who: a.id, x: best ? best.id : null });
       adjustRel(sim, w, a.id, -20);
-      if (w !== best && !w.fightWith) this.flee(w, a);
+      if (w !== best && w.fightWith !== a.id && w.id !== a.fightWith) this.flee(w, a);
     }
     if (a.kind === 'player') {
       sim.addHeat(best ? 45 : 25, best ? 'firing at someone' : 'firing a gun in public');
@@ -105,7 +125,7 @@ export class Fights {
       sim.emit('float', { room: best.room, x: best.x, y: best.y - 50, text: 'miss', color: '#cfd8e3' });
       return true;
     }
-    const dmg = Math.round(gun.dmgOverride || ITEMS.pistol.dmg * sim.rng.range(0.8, 1.2));
+    const dmg = Math.round(gun.dmgOverride || G.dmg * sim.rng.range(0.8, 1.2));
     best.stats.health = Math.max(0, best.stats.health - dmg);
     const _b = scratch(best);
     _b.hurtT = 0.35;
@@ -116,10 +136,32 @@ export class Fights {
     if (best.kind === 'npc') {
       remember(sim, best, { type: 'shot', who: a.id });
       adjustRel(sim, best, a.id, -70);
-      if (best.stats.health > 0) this.flee(best, a);
+      if (best.stats.health > 0 && best.fightWith !== a.id) this.flee(best, a);
     }
-    if (best.stats.health <= 0) this.knockDown(best, a);
+    if (best.kind === 'player' && a.kind === 'npc') sim.emit('shake', { amt: 12 });
+    if (best.stats.health <= 0) this.knockDown(best, a, 'shot');
     return true;
+  }
+
+  // Keyboard swings: turn toward whoever is closest (no mouse needed).
+  autoAim(a) {
+    const sim = this.sim;
+    const held = a.hands && sim.s.items[a.hands];
+    const gun = held && ITEMS[held.def].kind === 'firearm';
+    const reach = gun ? 420 : REACH + 40;
+    let best = null;
+    let bd = reach;
+    for (const id in sim.s.actors) {
+      const b = sim.s.actors[id];
+      if (b === a || b.room !== a.room || !b.loaded || b.downUntil || b.dead || b.act === 'drive') continue;
+      let d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (b.fightWith === a.id || a.fightWith === b.id) d *= 0.5; // whoever you're fighting comes first
+      if (d < bd) {
+        bd = d;
+        best = b;
+      }
+    }
+    return best ? { x: best.x, y: best.y - 20 } : null;
   }
 
   backOff(a) {
@@ -160,7 +202,7 @@ export class Fights {
     const _ = scratch(a);
     const w = this.weapon(a);
     const reach = REACH + (w ? w.d.reach || 0 : 0);
-    const [fx, fy] = FACE_VEC[a.face];
+    const [fx, fy] = _.aim ? [_.aim.x, _.aim.y] : FACE_VEC[a.face];
     let best = null;
     let bd = Infinity;
     for (const id in sim.s.actors) {
@@ -224,7 +266,7 @@ export class Fights {
       adjustRel(sim, b, a.id, -6 * grudgeMul(b));
       if (b.fightWith !== a.id) this.respond(b, a);
     }
-    if (b.stats.health <= 0) this.knockDown(b, a);
+    if (b.stats.health <= 0) this.knockDown(b, a, w && w.d.lethal ? 'stabbed' : 'beaten');
   }
 
   // First blow between two people: witnesses note who started it.
@@ -312,7 +354,8 @@ export class Fights {
     }
   }
 
-  knockDown(b, a) {
+  // cause: 'beaten' (fists, clubs), 'stabbed' or 'shot'. The last two can kill.
+  knockDown(b, a, cause = 'beaten') {
     const sim = this.sim;
     b.fightWith = null;
     a.fightWith = null;
@@ -337,10 +380,13 @@ export class Fights {
       b.act = 'down';
       if (b.spot) sim.leaveSpot(b);
       dropHands(sim, b);
+      sim.street.dropLoot(b);
       sim.emit('down', { id: b.id, room: b.room });
       sim.police.onKnockdown(a, b);
+      // strangers on the street don't get back up from a bullet or a blade
+      if (b.extra && cause !== 'beaten') sim.street.kill(b, a, cause);
     } else {
-      sim.playerDown(a);
+      sim.playerDown(a, cause);
     }
   }
 

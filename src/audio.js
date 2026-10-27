@@ -103,6 +103,16 @@ export class Audio {
         break;
       case 'swing': this.noise(t, 0.14, { freq: 600, sweep: 2400, gain: 0.12, q: 0.8 }); break;
       case 'whiff': this.noise(t, 0.18, { freq: 1800, sweep: 500, gain: 0.1, q: 0.7 }); break;
+      case 'shot':
+        // sharp crack, then a boom tail off the buildings
+        this.noise(t, 0.05, { freq: 2600, q: 0.6, gain: 0.9, type: 'highpass' });
+        this.noise(t, 0.38, { freq: 520, q: 0.5, gain: 0.7, type: 'lowpass', sweep: 120 });
+        this.tone(t, 0.18, { freq: 140, to: 40, gain: 0.55 });
+        break;
+      case 'alert':
+        this.tone(t, 0.09, { freq: 520, gain: 0.12, type: 'triangle' });
+        this.tone(t + 0.1, 0.14, { freq: 390, gain: 0.12, type: 'triangle' });
+        break;
       case 'thud':
         this.tone(t, 0.4, { freq: 90, to: 35, gain: 0.6 });
         this.noise(t, 0.25, { freq: 300, gain: 0.3, type: 'lowpass' });

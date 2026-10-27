@@ -75,3 +75,51 @@ export const ORIGINS = {
 export const ALLOC_POINTS = 10;
 export const ALLOC_STATS = [['strength', 'Strength'], ['agility', 'Agility'], ['intellect', 'Intellect'], ['aim', 'Aim']];
 export const ALLOC_MAX = 8;
+export const ALLOC_STEP = 3; // each point adds this much to the stat
+
+export const MORE_NAMES = ['Andre', 'Yesenia', 'DeShawn', 'Marisol', 'Cedric', 'Imani', 'Rudy', 'Paloma', 'Terrence', 'Keisha', 'Omar', 'Brenda', 'Jalen', 'Rosie', 'Victor', 'Aaliyah', 'Tomas', 'Shay', 'Curtis', 'Lena'];
+
+const NATURAL_HAIR = HAIR_COLORS.slice(0, 14);
+
+// A complete look with every field set, so nothing is derived behind your back.
+// rnd: the dice (Math.random in the creator, the sim's seeded RNG for strangers).
+export function randomLook(rnd = Math.random, keepBody = null) {
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const chance = (p) => rnd() < p;
+  const alt = chance(0.5); // only steers the dice; any option is open to anyone
+  const L = {
+    skin: pick(SKIN), build: alt ? pick(['slim', 'avg', 'curvy', 'curvy', 'heavy']) : pick(['slim', 'avg', 'avg', 'heavy', 'muscle']),
+    height: Math.round((0.94 + rnd() * 0.12) * 100) / 100, age: pick(['young', 'adult', 'adult', 'adult', 'older']),
+    face: pick(OPTIONS.face)[0], eyes: pick(OPTIONS.eyes)[0], eyeColor: pick(EYE_COLORS), brows: pick(OPTIONS.brows)[0],
+    nose: pick(OPTIONS.nose)[0], mouth: pick(['neutral', 'neutral', 'smile', 'smirk', 'frown']),
+    freckles: chance(0.12), scar: chance(0.1) ? pick(['cheek', 'brow']) : 'none',
+    makeup: alt && chance(0.6) ? pick(['lipstick', 'eyeliner', 'both']) : 'none', lipColor: pick(LIP_COLORS),
+  };
+  if (keepBody) Object.assign(L, keepBody);
+  L.hair = alt ? pick(['long', 'bob', 'ponytail', 'bun', 'braids', 'curly', 'afro', 'locs', 'pigtails', 'short']) : pick(['short', 'buzz', 'fade', 'slick', 'undercut', 'curly', 'afro', 'cornrows', 'locs', 'braids', 'bald', 'mohawk']);
+  L.hairColor = L.age === 'older' && chance(0.6) ? pick(['#bdbab4', '#e8e6e0']) : chance(0.08) ? pick(HAIR_COLORS.slice(14)) : pick(NATURAL_HAIR.slice(0, 11));
+  L.hair2 = chance(0.12) ? pick(HAIR_COLORS) : null;
+  L.beard = alt ? 'none' : pick(['none', 'none', 'stubble', 'goatee', 'mustache', 'chinstrap', 'full']);
+  L.beardColor = L.hairColor;
+  L.top = alt ? pick(['tee', 'tank', 'polo', 'button', 'hoodie', 'cardigan', 'dress', 'jersey']) : pick(['tee', 'tee', 'tank', 'polo', 'button', 'hoodie', 'jersey']);
+  L.topColor = pick(CLOTH);
+  L.top2 = pick(CLOTH.filter((c) => c !== L.topColor));
+  L.pattern = chance(0.3) ? pick(['stripes', 'plaid', 'floral', 'logo', 'number']) : 'none';
+  if (L.top === 'jersey') L.pattern = 'number';
+  L.outer = chance(0.3) ? pick(['jacket', 'denim', 'leather', 'windbreaker', 'vest']) : 'none';
+  L.outerColor = L.outer === 'denim' ? pick(DENIM.slice(0, 5)) : pick(['#1d1d22', '#3a2a1e', '#4a4f57', '#2f6b4a', '#1f3557', '#8a6a4a', '#b8283f']);
+  L.bottom = L.top === 'dress' ? 'jeans' : alt ? pick(['jeans', 'slacks', 'shorts', 'skirt', 'sweats', 'cargo']) : pick(['jeans', 'jeans', 'slacks', 'cargo', 'sweats', 'shorts']);
+  L.bottomColor = L.bottom === 'jeans' ? pick(DENIM.slice(0, 6)) : pick([...DENIM, ...CLOTH.slice(2, 5)]);
+  L.shoeStyle = pick(['sneakers', 'sneakers', 'sneakers', 'boots', 'dress', 'sandals']);
+  L.shoes = pick(SHOE_COLORS);
+  L.hat = chance(0.25) ? pick(['cap', 'backcap', 'beanie', 'bucket', 'cowboy']) : null;
+  L.hatColor = pick(CLOTH);
+  L.glasses = chance(0.18) ? pick(['square', 'round', 'shades']) : false;
+  L.earrings = alt ? pick([false, 'studs', 'hoops']) : pick([false, false, false, 'studs']);
+  L.chain = chance(0.15);
+  L.watch = chance(0.25);
+  L.backpack = chance(0.12);
+  L.packColor = pick(CLOTH);
+  L.tattoo = chance(0.15) ? pick(['arm', 'neck', 'tear']) : 'none';
+  return L;
+}

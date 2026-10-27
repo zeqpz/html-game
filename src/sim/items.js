@@ -277,6 +277,21 @@ export function useItem(sim, a, it) {
   const d = ITEMS[it.def];
   const st = a.stats;
   const parts = [];
+  if (d.kind === 'wallet') {
+    const n = sim.rng.chance(0.2) ? 0 : sim.rng.int(3, 64);
+    destroy(sim, it);
+    if (n > 0) {
+      const cash = newItem(sim, 'cash', { n });
+      if (!putInCont(sim, cash, a.pockets)) placeGround(sim, cash, a.room, a.x, a.y);
+      sim.sfx('cash');
+    }
+    sim.log(n > 0 ? `The wallet had $${n} in it. You toss the rest.` : 'Empty — somebody got to it first. You toss it.', n > 0 ? 'good' : '');
+    return true;
+  }
+  if (d.kind === 'valuable') {
+    sim.toast(`Worth about $${d.value}. Sal at the pawn shop buys this kind of thing.`, '');
+    return true;
+  }
   if (d.kind === 'food' || d.kind === 'drink') {
     if (d.hunger) { st.hunger = clamp(st.hunger + d.hunger, 0, 100); parts.push('hunger'); }
     if (d.thirst) { st.thirst = clamp(st.thirst + d.thirst, 0, 100); parts.push('thirst'); }

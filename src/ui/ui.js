@@ -5,7 +5,8 @@ import { ITEMS } from '../data/items.js';
 import { SHOPS } from '../data/shops.js';
 import { JOBS, FAVORS } from '../data/work.js';
 import { PERSONALITIES } from '../data/personalities.js';
-import { NAMES_PLAYER } from '../data/lines.js';
+import { $, el } from './dom.js';
+import { openCreator } from './creator.js';
 import { clock12, weekday, dayOf, money, clamp, tod } from '../sim/util.js';
 import { cashOnBody, itemName } from '../sim/items.js';
 import { capacity, carriedWeight, scratch } from '../sim/actors.js';
@@ -21,25 +22,6 @@ import { FURNITURE } from '../data/rooms3.js';
 import { CREWS } from '../data/crews.js';
 import { coinPrice, GROW_MINUTES } from '../sim/economy.js';
 import { LEASE_NAMES, RENT } from '../sim/money.js';
-
-const $ = (id) => document.getElementById(id);
-
-function el(tag, attrs = {}, ...kids) {
-  const e = document.createElement(tag);
-  for (const k in attrs) {
-    const v = attrs[k];
-    if (k === 'class') e.className = v;
-    else if (k === 'style') e.style.cssText = v;
-    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else if (k === 'html') e.innerHTML = v;
-    else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v);
-  }
-  for (const kid of kids.flat()) {
-    if (kid === null || kid === undefined || kid === false) continue;
-    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
-  }
-  return e;
-}
 
 function itemCanvas(def, px, it = null) {
   const c = document.createElement('canvas');
@@ -458,6 +440,21 @@ export class UI {
         ? el('div', { class: 'banklog' }, ...log.map((l) => el('div', {}, el('small', {}, `${weekday(l.t)} ${clock12(l.t)}`), el('span', {}, l.kind), el('b', { class: l.kind === 'deposit' ? 'good' : '' }, `${l.kind === 'deposit' ? '+' : '−'}$${l.amt}`))))
         : el('p', { class: 'sub' }, 'No transactions yet.'));
       card.append(body);
+    } else if (m.type === 'mug') {
+      const npc = sim.s.actors[m.npc];
+      const cash = cashOnBody(sim, p);
+      const odds = Math.round(clamp(0.22 + p.stats.intellect / 260 + p.stats.reputation / 240 + (npc && npc.rel.p ? npc.rel.p.v : 0) / 200, 0.08, 0.85) * 100);
+      card.classList.add('mugcard');
+      card.append(el('h2', {}, 'Hold-up'),
+        npc ? portrait(npc.look, 64) : null,
+        el('p', { class: 'sub' }, `${npc ? npc.short : 'Somebody'} steps in close${m.weapon ? ` with a ${ITEMS[m.weapon].name.toLowerCase()}` : ''}. "Run your pockets."`),
+        el('div', { class: 'kv' }, el('span', {}, 'Cash on you'), el('b', {}, money(cash))));
+      card.append(
+        el('button', { class: 'hot wide', onclick: () => sim.cmd('mug_reply', { choice: 'pay' }) }, cash > 0 ? `Hand over ${money(cash)}` : 'Show empty pockets'),
+        el('button', { class: 'hot wide', onclick: () => sim.cmd('mug_reply', { choice: 'talk' }) }, `Talk your way out (${odds}%)`),
+        el('button', { class: 'hot wide primary', onclick: () => sim.cmd('mug_reply', { choice: 'fight' }) }, 'Fight back'),
+        el('button', { class: 'hot wide', onclick: () => sim.cmd('mug_reply', { choice: 'run' }) }, 'Run'));
+      if (m.weapon && ITEMS[m.weapon].kind === 'firearm') card.append(el('p', { class: 'sub bad' }, 'A gun changes the math. Getting shot here is the end of this life.'));
     } else if (m.type === 'rent') {
       const L = sim.money.lease(m.lease || 'apt_2b');
       card.append(el('h2', {}, 'Rent · Bayou Arms Unit 2B'));
@@ -581,7 +578,7 @@ export class UI {
       card.append(el('button', { class: 'hot wide primary', onclick: () => sim.cmd('coins_sell') }, held ? `Sell ${held} coin · ~$${Math.round(held * now)}` : 'No coin to sell'));
     } else if (m.type === 'phone') {
       card.append(el('h2', {}, 'Phone'), el('p', { class: 'sub' }, 'A cracked screen and a few numbers that matter.'));
-      const contacts = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && a.rel.p && a.rel.p.met && (a.rel.p.v >= 25 || ['crew', 'boss'].includes(a.rel.p.tag)));
+      const contacts = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && !a.extra && a.rel.p && a.rel.p.met && (a.rel.p.v >= 25 || ['crew', 'boss'].includes(a.rel.p.tag)));
       if (!contacts.length) card.append(el('p', { class: 'sub' }, 'Nobody likes you enough to pick up yet.'));
       for (const a of contacts) {
         const tag = displayTag(a, 'p');
@@ -936,7 +933,7 @@ export class UI {
       el('span', { style: `color:${CREWS.canalkings.color}` }, 'Canal Kings'),
       el('small', {}, host >= 60 ? 'at war' : host >= 40 ? 'tense' : 'uneasy truce'),
       el('small', {}, sim.player.crew ? `You roll with the ${CREWS[sim.player.crew].name}.` : 'You roll solo.')));
-    const npcs = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && a.rel.p && a.rel.p.met);
+    const npcs = Object.values(sim.s.actors).filter((a) => a.kind === 'npc' && !a.extra && a.rel.p && a.rel.p.met);
     if (!npcs.length) {
       body.append(el('p', { class: 'sub' }, "You haven't really met anyone yet. Walk up to somebody and press E."));
       return;
@@ -1068,7 +1065,7 @@ export class UI {
       el('button', { class: `wide${hasSave ? '' : ' primary'}`, onclick: () => this.showCreate() }, 'New life'),
       el('button', { class: 'wide', onclick: () => this.help(card) }, 'How to play'),
       el('button', { class: 'wide', onclick: () => this.settings(card) }, 'Settings'),
-      el('p', { class: 'fine' }, 'Saves stay on this device. WASD / arrows to move, E to act. Touch: left thumb moves.'),
+      el('p', { class: 'fine' }, 'Saves stay on this device. WASD to move, E to act, click or Space to fight. Die and that character is gone for good.'),
     );
     t.append(card);
   }
@@ -1079,89 +1076,36 @@ export class UI {
     $('hud').classList.remove('hidden');
   }
 
-  showCreate() {
-    $('title').classList.add('hidden');
-    const box = $('create');
-    box.classList.remove('hidden');
-    box.innerHTML = '';
-    const SK = ['#f1c8a5', '#e0ac85', '#c68a5e', '#a8754f', '#8d5a3b', '#6b4229', '#4f2f1d', '#3a2216'];
-    const HC = ['#120c0a', '#3b2416', '#6b4423', '#a8763a', '#d8b06a', '#9e3b26', '#bdbab4', '#2b3b6b'];
-    const CC = ['#d4572a', '#2f4f3a', '#2c5aa0', '#e9e9e4', '#1d1d22', '#b8283f', '#7a5c8e', '#e8b923', '#4fb3a0', '#8a6a4a'];
-    const PC = ['#34445e', '#1f2a44', '#2c2c34', '#6b5a43', '#3b4a6b', '#55595e', '#7b3b2f', '#1a1a1a'];
-    const rnd = (a) => a[Math.floor(Math.random() * a.length)];
-    const look = {
-      skin: rnd(SK), hair: rnd(['short', 'buzz', 'curly', 'afro', 'braids', 'bun', 'long', 'ponytail']), hairColor: rnd(HC.slice(0, 5)),
-      beard: 'none', top: rnd(['tee', 'hoodie', 'button', 'tank']), topColor: rnd(CC), top2: '#e8e2d4', bottom: rnd(['jeans', 'slacks', 'shorts']),
-      bottomColor: rnd(PC), shoes: rnd(['#ececec', '#1b1b1e', '#8a5b3c']), build: rnd(['slim', 'avg', 'avg', 'heavy', 'muscle']), height: 1, hat: null, glasses: false,
-    };
-    const st = { name: rnd(NAMES_PLAYER), dayLen: this.g.settings.dayLen };
-    const prev = document.createElement('canvas');
-    prev.className = 'preview';
-    const draw = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      prev.width = 220 * dpr;
-      prev.height = 260 * dpr;
-      prev.style.width = '220px';
-      prev.style.height = '260px';
-      const ctx = prev.getContext('2d');
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, 220, 260);
-      const faces = ['down', 'right', 'up', 'left'];
-      const f = faces[Math.floor(performance.now() / 1600) % 4];
-      ctx.translate(110, 236);
-      ctx.scale(4.2, 4.2);
-      drawPerson(ctx, look, { face: f, pose: 'stand', t: performance.now() / 1000, moving: true, phase: performance.now() / 160 });
-    };
-    const anim = () => {
-      if (box.classList.contains('hidden')) return;
-      draw();
-      requestAnimationFrame(anim);
-    };
-    const picker = (label, key, opts, isColor) => {
-      const row = el('div', { class: 'pick' }, el('span', {}, label));
-      const btns = [];
-      for (const o of opts) {
-        const val = Array.isArray(o) ? o[0] : o;
-        const txt = Array.isArray(o) ? o[1] : o;
-        const b = el('button', { class: `${isColor ? 'sw' : 'opt'}${look[key] === val ? ' on' : ''}`, style: isColor ? `background:${val}` : '', title: txt, onclick: () => {
-          look[key] = val;
-          if (key === 'top' && val === 'apron') look.top2 = '#3b6fa0';
-          for (const x of btns) x.classList.toggle('on', x === b);
-        } }, isColor ? '' : txt);
-        btns.push(b);
-        row.append(b);
-      }
-      return row;
-    };
-    const name = el('input', { type: 'text', value: st.name, maxlength: 16 });
-    name.addEventListener('input', () => (st.name = name.value));
-    const day = el('select', {}, ...[[480, '8 min'], [600, '10 min'], [720, '12 min']].map(([v, l]) => el('option', { value: v, selected: st.dayLen === v ? 'selected' : null }, l)));
-    day.addEventListener('change', () => (st.dayLen = Number(day.value)));
-    const form = el('div', { class: 'form' },
-      el('label', { class: 'name' }, 'Name', name),
-      picker('Skin', 'skin', SK, true),
-      picker('Hair', 'hair', [['short', 'Short'], ['buzz', 'Buzz'], ['curly', 'Curly'], ['afro', 'Afro'], ['braids', 'Braids'], ['bun', 'Bun'], ['long', 'Long'], ['ponytail', 'Tail'], ['bald', 'Bald']]),
-      picker('Hair color', 'hairColor', HC, true),
-      picker('Face', 'beard', [['none', 'Clean'], ['stubble', 'Stubble'], ['goatee', 'Goatee'], ['full', 'Beard']]),
-      picker('Top', 'top', [['tee', 'Tee'], ['tank', 'Tank'], ['hoodie', 'Hoodie'], ['button', 'Button-up'], ['jacket', 'Jacket']]),
-      picker('Top color', 'topColor', CC, true),
-      picker('Bottom', 'bottom', [['jeans', 'Jeans'], ['slacks', 'Slacks'], ['shorts', 'Shorts'], ['skirt', 'Skirt']]),
-      picker('Bottom color', 'bottomColor', PC, true),
-      picker('Build', 'build', [['slim', 'Slim'], ['avg', 'Average'], ['heavy', 'Heavy'], ['muscle', 'Muscular']]),
-      picker('Hat', 'hat', [[null, 'None'], ['cap', 'Cap'], ['beanie', 'Beanie']]),
-      picker('Glasses', 'glasses', [[false, 'No'], [true, 'Yes']]),
-      el('label', { class: 'name' }, 'Day length', day),
-    );
-    box.append(el('div', { class: 'createcard' },
-      el('h2', {}, 'Who are you?'),
-      el('div', { class: 'createrow' }, el('div', { class: 'prevwrap' }, prev), form),
-      el('div', { class: 'createbtns' },
-        el('button', { onclick: () => { box.classList.add('hidden'); this.showTitle(this.g.hasSave(), this.g.saveSummary()); } }, 'Back'),
-        el('button', { onclick: () => this.showCreate() }, 'Shuffle'),
-        el('button', { class: 'primary', onclick: () => { if (look.hat === 'cap') look.hatColor = look.topColor; this.g.newGame(st.name.trim() || 'Marcus', look, st.dayLen); } }, 'Start your life'),
-      ),
+  // The end of a life: who they were, how it ended, then a new person.
+  showDeath(d) {
+    $('hud').classList.add('hidden');
+    this.closePanel();
+    const t = $('title');
+    t.innerHTML = '';
+    t.classList.remove('hidden');
+    const S = d.stats || {};
+    const stat = (k, v) => [el('span', {}, k), el('b', {}, String(v))];
+    t.append(el('div', { class: 'titlecard deathcard' },
+      el('div', { class: 'rip' }, 'Rest in peace'),
+      d.look ? portrait(d.look, 96) : null,
+      el('h1', {}, d.name),
+      el('p', { class: 'how' }, `${d.how[0].toUpperCase()}${d.how.slice(1)}. ${weekday(d.t)}, ${clock12(d.t)}.`),
+      el('div', { class: 'kv' }, ...stat('Days in H-Town', d.days), ...stat('Fights won', S.fightsWon || 0), ...stat('Shifts worked', S.shifts || 0), ...stat('Favors done', S.favors || 0), ...stat('Reputation', d.rep), ...stat('Left in the bank', money(d.bank || 0))),
+      el('p', { class: 'fine' }, 'This character is gone for good. Everything they owned stays behind.'),
+      el('button', { class: 'wide primary', onclick: () => this.showCreate('rebirth') }, 'Start a new life'),
+      el('button', { class: 'wide', onclick: () => this.g.toTitle() }, 'Title screen'),
     ));
-    anim();
+  }
+
+  // mode: 'new' from the title, 'rebirth' after a death.
+  showCreate(mode = 'new') {
+    $('title').classList.add('hidden');
+    openCreator(this, {
+      mode,
+      dayLen: this.g.settings.dayLen,
+      onBack: mode === 'new' ? () => this.showTitle(this.g.hasSave(), this.g.saveSummary()) : () => this.showDeath(this.g.sim.s.death),
+      onDone: (r) => (mode === 'rebirth' ? this.g.rebirth(r) : this.g.newGame(r)),
+    });
   }
 }
 
@@ -1169,7 +1113,7 @@ const HELP = `
 <p><b>H-Town Nights</b> is a life sim. No missions, no win screen. Eat, sleep, work, drive, rent, talk, fight and build a name. People keep a memory of what you did — and they bring it up.</p>
 <ul>
 <li><kbd>WASD</kbd>/<kbd>arrows</kbd> move · <kbd>Shift</kbd> run · <kbd>E</kbd> act / talk / pick up</li>
-<li><kbd>F</kbd> strike (or fire) · <kbd>Space</kbd> back off · <kbd>R</kbd> use what you hold · <kbd>Q</kbd> drop it</li>
+<li><kbd>Click</kbd> attack toward the cursor (fires a gun if you hold one) · <kbd>Space</kbd>/<kbd>F</kbd> attack whoever's closest · <kbd>R</kbd> use what you hold · <kbd>Q</kbd> drop it</li>
 <li><kbd>I</kbd> bag · <kbd>P</kbd> people · <kbd>C</kbd> you · <kbd>B</kbd> board · <kbd>L</kbd> log · <kbd>Esc</kbd> menu</li>
 <li>Driving: <kbd>W</kbd>/<kbd>S</kbd> gas and brake · <kbd>A</kbd>/<kbd>D</kbd> steer · <kbd>Space</kbd> handbrake · <kbd>E</kbd> get out · <kbd>R</kbd> radio</li>
 <li>Touch: left thumb is the stick, buttons on the right.</li>
